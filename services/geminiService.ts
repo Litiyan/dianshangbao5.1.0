@@ -1,109 +1,117 @@
+import { MarketAnalysis, ImageStyle, ImageCategory } from "../types";
 
-import { GoogleGenAI } from "@google/genai";
-import { MarketAnalysis, ScenarioType, TextConfig } from "../types";
-
-// 初始化 AI 实例，直接从注入的环境变量读取 Key
-const getAiClient = () => new GoogleGenAI({ apiKey: (process.env as any).API_KEY });
+// ✅ 核心修改：指向我们自己的 Cloudflare 后端，而不是直接连 Google
+const API_ENDPOINT = '/api/gemini';
 
 /**
- * 1. 商品 DNA 智能分析
- * 使用 Gemini 3 Flash 进行快速识别
+ * 通用 BFF 调用函数
+ * 负责把数据打包发给 functions/api/gemini.ts
  */
-export async function analyzeProduct(base64Images: string[]): Promise<MarketAnalysis> {
+async function callGeminiBff(payload: any) {
   try {
-    const ai = getAiClient();
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: {
-        parts: [
-          ...base64Images.map(data => ({ inlineData: { data, mimeType: 'image/png' } })),
-          { text: "请分析这些商品图片。必须以简洁的 JSON 格式输出，不要包含 Markdown 标记：{ \"productType\": \"商品名称\", \"targetAudience\": \"目标受众\", \"sellingPoints\": [\"卖点1\", \"卖点2\"], \"suggestedPrompt\": \"构图建议\", \"isApparel\": 布尔值 }" }
-        ]
-      },
-      config: { 
-        responseMimeType: "application/json"
-      }
+    console.log("正在呼叫后端:", API_ENDPOINT);
+    const response = await fetch(API_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
     });
 
-    const data = JSON.parse(response.text || "{}");
-    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`服务请求失败 (${response.status}): ${errorText}`);
+    }
+
+    const data = await response.json();
+    return data;
+
+  } catch (error: any) {
+    console.error("BFF 调用失败:", error);
+    // 转换成用户能看懂的人话
+    if (error.message.includes("Failed to fetch")) {
+      throw new Error("网络连接中断，请检查您的网络或 Cloudflare 部署状态。");
+    }
+    throw error;
+  }
+}
+
+/**
+ * 1. 分析产品 (调用后端 gemini-2.0-flash)
+ */
+export async function analyzeProduct(base64Image: string): Promise<MarketAnalysis> {
+  const payload = {
+    action: 'analyze', // 告诉后端我要做分析
+    image: base64Image
+  };
+
+  try {
+    const result = await callGeminiBff(payload);
+    // 后端已经帮我们处理好 JSON 了，直接用
+    return result as MarketAnalysis;
+  } catch (error) {
+    console.error("分析失败:", error);
+    // 失败兜底数据，防止页面白屏
     return {
-      productType: data.productType || "电商商品",
-      targetAudience: data.targetAudience || "大众消费者",
-      sellingPoints: data.sellingPoints || ["专业构图", "极致细节"],
-      suggestedPrompt: data.suggestedPrompt || "Commercial product photography",
-      isApparel: !!data.isApparel
-    };
-  } catch (e) {
-    console.error("Analysis error:", e);
-    return {
-      productType: "商品",
+      productType: "未识别商品",
       targetAudience: "通用",
-      sellingPoints: ["高品质", "商业摄影"],
-      suggestedPrompt: "Professional studio shot",
+      sellingPoints: ["高品质", "设计感"],
+      suggestedPrompt: "Product photography",
+      recommendedCategories: ["DISPLAY"],
+      marketingCopy: { title: "新品上市", shortDesc: "品质之选", tags: ["热销"] },
       isApparel: false
     };
   }
 }
 
 /**
- * 2. 核心商业场景重构
- * 使用专业图像生成模型
+ * 2. 生成图片 (调用后端 gemini-2.5-flash-image)
  */
-export async function generateScenarioImage(
-  base64Images: string[],
-  scenario: ScenarioType,
-  analysis: MarketAnalysis,
-  userIntent: string,
-  textConfig: TextConfig,
-  modelNationality: string = ""
+export async function generateProductDisplay(
+  base64Image: string,
+  style: ImageStyle,
+  category: ImageCategory,
+  aspectRatio: string,
+  marketAnalysis: MarketAnalysis,
+  fineTunePrompts: string[],
+  isUltraHD: boolean,
+  chatHistory: { role: 'user' | 'assistant', text: string }[] = []
 ): Promise<string> {
-  const ai = getAiClient();
   
-  const textPrompt = (textConfig.title || textConfig.detail)
-    ? `GRAPHIC DESIGN MANDATE: Overlay text "${textConfig.title}" and subtitle "${textConfig.detail}" elegantly. Ensure clear visibility.`
-    : `VISUAL FOCUS: No text overlays, focus on product integration.`;
-
-  const prompt = `
-    TASK: E-commerce Product Scene Reconstruction.
-    SCENARIO: ${scenario}.
-    USER CREATIVE INTENT: ${userIntent}.
-    PRODUCT: ${analysis.productType} (${analysis.sellingPoints.join(', ')}).
-    ${modelNationality ? `MODEL: Use a ${modelNationality}.` : ''}
-    ${textPrompt}
-    QUALITY: 8k photorealistic, commercial studio lighting.
-    IMPORTANT: Preserve the original product shape and color from the provided photos.
-  `;
-
-  const ratioMap: Record<string, string> = {
-    [ScenarioType.MOMENTS_POSTER]: "9:16",
-    [ScenarioType.LIVE_OVERLAY]: "16:9",
-    [ScenarioType.LIVE_GREEN_SCREEN]: "16:9",
-    [ScenarioType.PLATFORM_MAIN_DETAIL]: "1:1",
-    [ScenarioType.CROSS_BORDER_LOCAL]: "1:1"
+  const payload = {
+    action: 'generate', // 告诉后端我要生图
+    image: base64Image,
+    params: {
+      style,
+      category,
+      aspectRatio,
+      marketAnalysis,
+      fineTunePrompts,
+      isUltraHD,
+      chatHistory
+    }
   };
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash-image',
-    contents: {
-      parts: [
-        ...base64Images.map(data => ({ inlineData: { data, mimeType: 'image/png' } })),
-        { text: prompt }
-      ]
-    },
-    config: {
-      imageConfig: {
-        aspectRatio: (ratioMap[scenario] || "1:1") as any
-      }
-    }
-  });
-
-  // 遍历结果寻找图像部分
-  for (const part of response.candidates?.[0]?.content?.parts || []) {
-    if (part.inlineData) {
-      return `data:image/png;base64,${part.inlineData.data}`;
-    }
+  const result = await callGeminiBff(payload);
+  
+  if (result.image) {
+    return result.image; // 后端直接返回 Base64
   }
   
-  throw new Error("AI 渲染引擎未返回结果，请检查输入后重试。");
+  throw new Error("生成失败：后端未返回图片数据");
+}
+
+// 占位函数，防止报错
+export async function generatePreview(base64Image: string) {
+    return generateProductDisplay(base64Image, 'MINIMALIST', 'DISPLAY', '1:1', {} as any, [], false);
+}
+
+export async function generateMarketingSuite(base64Image: string, analysis: any) {
+    // 简单起见，这里演示并发调用
+    return Promise.all([
+        generateProductDisplay(base64Image, 'MINIMALIST', 'DISPLAY', '1:1', analysis, [], false),
+        generateProductDisplay(base64Image, 'LIFESTYLE', 'SOCIAL', '3:4', analysis, [], false)
+    ]);
+}
+
+export async function generateModelImage(base64Image: string) {
+    return generateProductDisplay(base64Image, 'FASHION', 'MODEL', '3:4', {} as any, ['Asian model'], false);
 }
