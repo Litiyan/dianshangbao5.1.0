@@ -3,6 +3,91 @@ import { MarketAnalysis, ScenarioType, TextConfig } from "../types";
 const BFF_ENDPOINT = '/api/gemini';
 
 /**
+ * 场景矩阵分发器：构造专业商业视觉指令
+ */
+function buildScenarioPrompt(
+  scenario: ScenarioType,
+  analysis: MarketAnalysis,
+  userIntent: string,
+  textConfig: TextConfig
+): string {
+  // 核心场景指令库
+  const scenarioMatrix: Record<string, string> = {
+    [ScenarioType.PLATFORM_MAIN_DETAIL]: `
+      Role: Top-tier Commercial Still-life Photographer. 
+      Technique: 50mm lens, sharp focus on the product, f/8 aperture for deep depth of field. 
+      Lighting: Professional studio 3-point lighting (key, fill, and back lights). 
+      Background: Clean, minimalist background (subtle gradient or soft reflection) that creates zero distraction. 
+      Vibe: High-conversion Taobao/JD style, premium texture, crisp details.`,
+
+    [ScenarioType.BUYER_SHOW]: `
+      Role: Real consumer posting a social media review. 
+      Technique: Shot on iPhone 15 Pro, handheld, slightly imperfect but aesthetic composition. 
+      Lighting: Natural indoor room lighting with soft window light, no professional studio lights. 
+      Environment: Casual lifestyle setting (e.g., real living room, a genuine wooden desk with minor everyday items). 
+      Vibe: UGC (User Generated Content) style, ultra-authentic, relatable, high trust factor.`,
+
+    [ScenarioType.MOMENTS_POSTER]: `
+      Role: High-end Social Media Art Director. 
+      Composition: 9:16 vertical. Heavy use of negative space (deliberate empty space) at the top or bottom for typography placement. 
+      Technique: 35mm lens for wide lifestyle impact. 
+      Vibe: Emotional, cinematic color grading, 'Instaworthy' aesthetic, soft shadows, airy and premium feel.`,
+
+    [ScenarioType.LIVE_GREEN_SCREEN]: `
+      Role: Virtual Production Set Designer. 
+      Technique: Extremely shallow depth of field (f/1.2) creating heavy bokeh blur for the background. 
+      Context: This is a backdrop for a professional live streamer. 
+      Setting: Luxurious showroom or futuristic high-tech studio matching the product's identity. 
+      Lighting: Even, soft ambient glow, consistent perspective with the product.`,
+
+    [ScenarioType.MODEL_REPLACEMENT]: `
+      Role: Vogue Fashion Photographer. 
+      Technique: High-fashion portraiture. Focus on photorealistic human model features. 
+      Skin: Emphasize extremely realistic skin texture (micro-pores, natural subsurface scattering, peach fuzz). 
+      Vibe: High-end lifestyle, diverse and authentic facial features, anti-uncanny valley, masterpiece quality.`,
+
+    [ScenarioType.CROSS_BORDER_LOCAL]: `
+      Role: International Brand Strategist. 
+      Context: Localize for global markets (Amazon/Shopee). 
+      Environment: Local authentic architecture and lifestyle decor matching Western or SEA demographics. 
+      Lighting: Bright, sunny, high-key commercial lighting popular in international e-commerce.`,
+
+    [ScenarioType.TEXT_EDIT_TRANSLATE]: `
+      Role: Graphic Design Master. 
+      Task: Remove all messy or foreign text from the original product. 
+      Layout: Optimize product placement to allow for clean, bilingual typography. 
+      Vibe: Modern Swiss-design style, clean lines, high legibility.`,
+
+    [ScenarioType.LIVE_OVERLAY]: `
+      Role: UI/UX Live Broadcast Designer. 
+      Style: Semi-transparent technological glassmorphism. 
+      Features: Neon accents, placeholder spaces for branding, interactive UI elements integrated into the 3D space. 
+      Lighting: Dynamic, vibrant studio colors.`
+  };
+
+  // 组装最终指令
+  return `
+    [ACTING ROLE]
+    ${scenarioMatrix[scenario] || "Senior Commercial Photographer"}
+
+    [PRODUCT CONTEXT]
+    Product Type: ${analysis.productType}
+    Core Selling Points: ${analysis.sellingPoints.join(', ')}
+    AI Suggested Style: ${analysis.suggestedPrompt}
+
+    [USER SPECIFIC INTENT]
+    ${userIntent || "Optimize for maximum commercial conversion."}
+
+    [TYPOGRAPHY INTEGRATION]
+    Planned Text: Title "${textConfig.title}", Details "${textConfig.detail}". 
+    Instruction: Preserve spatial depth. Integrate text fields into the visual hierarchy without overlapping key product features.
+
+    [TECHNICAL CONSTRAINTS]
+    Quality: 8k resolution, photorealistic, cinematic commercial lighting, masterpiece, no distorted textures, correct physical shadows.
+  `.trim();
+}
+
+/**
  * 通用请求分发器
  */
 async function sendRequest(model: string, payload: any) {
@@ -13,11 +98,11 @@ async function sendRequest(model: string, payload: any) {
   });
 
   if (response.status === 429) {
-    throw new Error("API 配额已耗尽或请求频率过快，请检查 Cloudflare 绑定状态。");
+    throw new Error("API 配额已耗尽，请确保 Cloudflare 后端已正确配置付费项目或稍后再试。");
   }
 
   const data = await response.json();
-  if (data.error) throw new Error(data.message || "请求 AI 服务时发生未知错误");
+  if (data.error) throw new Error(data.message || "AI 引擎响应错误");
   return data;
 }
 
@@ -29,7 +114,7 @@ export async function analyzeProduct(base64Images: string[]): Promise<MarketAnal
     contents: [{
       parts: [
         ...base64Images.map(data => ({ inlineData: { data, mimeType: 'image/png' } })),
-        { text: "Role: Senior E-commerce Visual Expert. Task: Analyze the provided product images and output a STRICT JSON object with these keys: productType, targetAudience, sellingPoints (array), suggestedPrompt (English description for AI generation), isApparel (boolean)." }
+        { text: "Analyze these product images. Output ONLY a JSON object: {productType, targetAudience, sellingPoints[], suggestedPrompt, isApparel:boolean}." }
       ]
     }],
     generationConfig: {
@@ -43,12 +128,11 @@ export async function analyzeProduct(base64Images: string[]): Promise<MarketAnal
   try {
     return JSON.parse(text);
   } catch (e) {
-    console.error("JSON Parse Error on Analysis:", e);
     return {
-      productType: "Ecommerce Product",
+      productType: "Commercial Product",
       targetAudience: "Global Consumers",
-      sellingPoints: ["High Quality", "Professional Design"],
-      suggestedPrompt: "professional studio product photography, clean background",
+      sellingPoints: ["Quality Manufacturing"],
+      suggestedPrompt: "professional studio photography",
       isApparel: false
     };
   }
@@ -65,17 +149,8 @@ export async function generateScenarioImage(
   textConfig: TextConfig
 ): Promise<string> {
   
-  // 场景映射与专业 Prompt 构造
-  const scenarioPrompts: Record<string, string> = {
-    [ScenarioType.CROSS_BORDER_LOCAL]: "Place the product in an authentic local lifestyle environment relative to international markets (Amazon/Shopee style). Localized decor and lighting.",
-    [ScenarioType.TEXT_EDIT_TRANSLATE]: "Clear any existing messy text. Prepare spaces for professional typography. High-end graphic design layout.",
-    [ScenarioType.MODEL_REPLACEMENT]: "Replace original model with a high-fashion human model matching diverse global demographics. Photorealistic skin textures.",
-    [ScenarioType.MOMENTS_POSTER]: "High-impact social media marketing layout. 9:16 vertical composition. Bold visual hierarchy.",
-    [ScenarioType.PLATFORM_MAIN_DETAIL]: "Clean, high-conversion studio photography for Taobao/JD. Soft professional shadows, premium texture.",
-    [ScenarioType.BUYER_SHOW]: "Realistic home-style snap-shot lighting. Natural environment, casual but aesthetic composition.",
-    [ScenarioType.LIVE_OVERLAY]: "Technological futuristic overlay design. Translucent elements, branding space, neon accents.",
-    [ScenarioType.LIVE_GREEN_SCREEN]: "Ultra-HD virtual studio background. Consistent perspective with product. Depth of field."
-  };
+  // 使用场景矩阵构造高度专业化的 Prompt
+  const finalPrompt = buildScenarioPrompt(scenario, analysis, userIntent, textConfig);
 
   const ratioMap: Record<string, string> = {
     [ScenarioType.MOMENTS_POSTER]: "9:16",
@@ -86,19 +161,11 @@ export async function generateScenarioImage(
     [ScenarioType.PLATFORM_MAIN_DETAIL]: "1:1"
   };
 
-  const systemPrompt = `Role: World-Class Commercial Photographer & Visual Artist.
-Task: Reconstruct the product visual for [${scenario}].
-Scenario Context: ${scenarioPrompts[scenario] || ""}
-Product Intelligence: ${analysis.productType}, Selling points: ${analysis.sellingPoints.join(', ')}.
-User Custom Intent: ${userIntent || "Enhance commercial value"}.
-Typography Request: Title "${textConfig.title || ""}", Detail "${textConfig.detail || ""}". Integrate text seamlessly into the visual hierarchy.
-Final Output: 8k resolution, cinematic commercial lighting, masterpiece quality.`;
-
   const payload = {
     contents: [{
       parts: [
         ...base64Images.map(data => ({ inlineData: { data, mimeType: 'image/png' } })),
-        { text: systemPrompt }
+        { text: finalPrompt }
       ]
     }],
     generationConfig: {
@@ -110,7 +177,6 @@ Final Output: 8k resolution, cinematic commercial lighting, masterpiece quality.
 
   const result = await sendRequest('gemini-2.5-flash-image', payload);
   
-  // 遍历寻找图像 Part
   const parts = result.candidates?.[0]?.content?.parts || [];
   for (const part of parts) {
     if (part.inlineData) {
@@ -118,5 +184,5 @@ Final Output: 8k resolution, cinematic commercial lighting, masterpiece quality.
     }
   }
 
-  throw new Error("模型响应成功，但未包含图像数据。请尝试简化提示词或检查素材质量。");
+  throw new Error("AI 引擎未返回图像数据，请尝试调整意图描述或更换更清晰的素材。");
 }
