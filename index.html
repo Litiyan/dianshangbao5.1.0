@@ -6,7 +6,7 @@
     <title>电商宝 Pro - AI 商业视觉重构专家</title>
     <meta name="description" content="专为跨境、淘系商家打造的 AI 视觉实验室">
     <style>
-        /* 防御性样式：防止脚本加载完成前的白屏 */
+        /* 基础防御样式：防止加载过程中的布局闪烁 */
         body, html, #root { 
             margin: 0; padding: 0; min-height: 100vh; 
             background-color: #FDFCFB; 
@@ -14,11 +14,8 @@
         }
         .initial-loader {
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            color: #F97316; font-size: 14px; font-weight: 600; letter-spacing: 0.1em;
-            text-align: center;
+            color: #F97316; font-size: 14px; font-weight: 600; text-align: center;
         }
-        .loader-dot { animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
     </style>
 <script type="importmap">
 {
@@ -38,10 +35,9 @@
     <div id="root">
         <div class="initial-loader">
             <div style="font-size: 24px; margin-bottom: 8px;">🛍️</div>
-            电商宝 Pro 正在初始化视觉引擎<span class="loader-dot">...</span>
+            正在载入视觉引擎...
         </div>
     </div>
-    <!-- 由 Vite 统一处理模块解析和环境变量注入 -->
     <script type="module" src="/index.tsx"></script>
 </body>
 </html>
