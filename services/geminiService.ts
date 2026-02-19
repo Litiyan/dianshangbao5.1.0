@@ -1,64 +1,61 @@
-import { GoogleGenAI, Type } from "@google/genai";
 import { MarketAnalysis, ScenarioType, TextConfig } from "../types";
 
-/**
- * 严格按照指令：使用 process.env.API_KEY 初始化
- */
-const getAIClient = () => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) {
-    console.error("Critical: API_KEY is missing in process.env. Check deployment settings.");
-  }
-  return new GoogleGenAI({ apiKey: apiKey || "" });
-};
+const BFF_ENDPOINT = '/api/gemini';
 
 /**
- * 产品视觉分析 (Gemini 3 Flash)
+ * 通用请求分发器
+ */
+async function sendRequest(model: string, payload: any) {
+  const response = await fetch(BFF_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model, payload })
+  });
+
+  if (response.status === 429) {
+    throw new Error("API 配额已耗尽或请求频率过快，请检查 Cloudflare 绑定状态。");
+  }
+
+  const data = await response.json();
+  if (data.error) throw new Error(data.message || "请求 AI 服务时发生未知错误");
+  return data;
+}
+
+/**
+ * 任务一：产品视觉深度分析 (使用 Gemini 3 Flash)
  */
 export async function analyzeProduct(base64Images: string[]): Promise<MarketAnalysis> {
-  const ai = getAIClient();
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: {
-        parts: [
-          ...base64Images.map(data => ({ inlineData: { data, mimeType: 'image/png' } })),
-          { text: "作为电商专家，分析这些产品图。识别：产品类型、受众、核心卖点、是否为服装。返回 JSON 格式。" }
-        ]
-      },
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            productType: { type: Type.STRING },
-            targetAudience: { type: Type.STRING },
-            sellingPoints: { type: Type.ARRAY, items: { type: Type.STRING } },
-            suggestedPrompt: { type: Type.STRING },
-            isApparel: { type: Type.BOOLEAN }
-          },
-          required: ["productType", "targetAudience", "sellingPoints", "suggestedPrompt", "isApparel"]
-        }
-      }
-    });
+  const payload = {
+    contents: [{
+      parts: [
+        ...base64Images.map(data => ({ inlineData: { data, mimeType: 'image/png' } })),
+        { text: "Role: Senior E-commerce Visual Expert. Task: Analyze the provided product images and output a STRICT JSON object with these keys: productType, targetAudience, sellingPoints (array), suggestedPrompt (English description for AI generation), isApparel (boolean)." }
+      ]
+    }],
+    generationConfig: {
+      responseMimeType: "application/json"
+    }
+  };
 
-    // 正确用法：使用 .text 属性
-    const text = response.text || "{}";
+  const result = await sendRequest('gemini-3-flash-preview', payload);
+  const text = result.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+  
+  try {
     return JSON.parse(text);
   } catch (e) {
-    console.error("Analysis Failed:", e);
+    console.error("JSON Parse Error on Analysis:", e);
     return {
-      productType: "通用商品",
-      targetAudience: "大众",
-      sellingPoints: ["高品质"],
-      suggestedPrompt: "professional product photography, studio lighting",
+      productType: "Ecommerce Product",
+      targetAudience: "Global Consumers",
+      sellingPoints: ["High Quality", "Professional Design"],
+      suggestedPrompt: "professional studio product photography, clean background",
       isApparel: false
     };
   }
 }
 
 /**
- * 视觉重构生图 (Gemini 2.5 Flash Image)
+ * 任务二：商业场景重构生图 (使用 Gemini 2.5 Flash Image)
  */
 export async function generateScenarioImage(
   base64Images: string[],
@@ -67,42 +64,59 @@ export async function generateScenarioImage(
   userIntent: string,
   textConfig: TextConfig
 ): Promise<string> {
-  const ai = getAIClient();
   
-  const ratioMap: Record<string, "1:1" | "3:4" | "4:3" | "9:16" | "16:9"> = {
-    [ScenarioType.MOMENTS_POSTER]: "9:16",
-    [ScenarioType.LIVE_OVERLAY]: "16:9",
-    [ScenarioType.PLATFORM_MAIN_DETAIL]: "1:1",
-    [ScenarioType.MODEL_REPLACEMENT]: "3:4",
-    [ScenarioType.BUYER_SHOW]: "3:4"
+  // 场景映射与专业 Prompt 构造
+  const scenarioPrompts: Record<string, string> = {
+    [ScenarioType.CROSS_BORDER_LOCAL]: "Place the product in an authentic local lifestyle environment relative to international markets (Amazon/Shopee style). Localized decor and lighting.",
+    [ScenarioType.TEXT_EDIT_TRANSLATE]: "Clear any existing messy text. Prepare spaces for professional typography. High-end graphic design layout.",
+    [ScenarioType.MODEL_REPLACEMENT]: "Replace original model with a high-fashion human model matching diverse global demographics. Photorealistic skin textures.",
+    [ScenarioType.MOMENTS_POSTER]: "High-impact social media marketing layout. 9:16 vertical composition. Bold visual hierarchy.",
+    [ScenarioType.PLATFORM_MAIN_DETAIL]: "Clean, high-conversion studio photography for Taobao/JD. Soft professional shadows, premium texture.",
+    [ScenarioType.BUYER_SHOW]: "Realistic home-style snap-shot lighting. Natural environment, casual but aesthetic composition.",
+    [ScenarioType.LIVE_OVERLAY]: "Technological futuristic overlay design. Translucent elements, branding space, neon accents.",
+    [ScenarioType.LIVE_GREEN_SCREEN]: "Ultra-HD virtual studio background. Consistent perspective with product. Depth of field."
   };
 
-  const prompt = `Commercial visual reconstruction for ${scenario}. Product: ${analysis.productType}. Selling points: ${analysis.sellingPoints.join(', ')}. Intent: ${userIntent}. Style: ${analysis.suggestedPrompt}. Quality: 8k, photorealistic, cinematic lighting.`;
+  const ratioMap: Record<string, string> = {
+    [ScenarioType.MOMENTS_POSTER]: "9:16",
+    [ScenarioType.LIVE_OVERLAY]: "16:9",
+    [ScenarioType.LIVE_GREEN_SCREEN]: "16:9",
+    [ScenarioType.MODEL_REPLACEMENT]: "3:4",
+    [ScenarioType.BUYER_SHOW]: "3:4",
+    [ScenarioType.PLATFORM_MAIN_DETAIL]: "1:1"
+  };
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash-image',
-    contents: {
+  const systemPrompt = `Role: World-Class Commercial Photographer & Visual Artist.
+Task: Reconstruct the product visual for [${scenario}].
+Scenario Context: ${scenarioPrompts[scenario] || ""}
+Product Intelligence: ${analysis.productType}, Selling points: ${analysis.sellingPoints.join(', ')}.
+User Custom Intent: ${userIntent || "Enhance commercial value"}.
+Typography Request: Title "${textConfig.title || ""}", Detail "${textConfig.detail || ""}". Integrate text seamlessly into the visual hierarchy.
+Final Output: 8k resolution, cinematic commercial lighting, masterpiece quality.`;
+
+  const payload = {
+    contents: [{
       parts: [
         ...base64Images.map(data => ({ inlineData: { data, mimeType: 'image/png' } })),
-        { text: prompt }
+        { text: systemPrompt }
       ]
-    },
-    config: {
+    }],
+    generationConfig: {
       imageConfig: {
         aspectRatio: ratioMap[scenario] || "1:1"
       }
     }
-  });
+  };
 
-  // 遍历结果寻找图像数据
-  const candidate = response.candidates?.[0];
-  if (candidate) {
-    for (const part of candidate.content.parts) {
-      if (part.inlineData) {
-        return `data:image/png;base64,${part.inlineData.data}`;
-      }
+  const result = await sendRequest('gemini-2.5-flash-image', payload);
+  
+  // 遍历寻找图像 Part
+  const parts = result.candidates?.[0]?.content?.parts || [];
+  for (const part of parts) {
+    if (part.inlineData) {
+      return `data:image/png;base64,${part.inlineData.data}`;
     }
   }
-  
-  throw new Error("模型未返回有效图像。");
+
+  throw new Error("模型响应成功，但未包含图像数据。请尝试简化提示词或检查素材质量。");
 }
