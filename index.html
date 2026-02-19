@@ -1,58 +1,25 @@
-
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>电商宝 Pro v3.1 - AI 视觉重构专家</title>
-    <meta name="description" content="电商宝 - 专为跨境、淘宝、京东商家打造的 AI 电商作图神器。支持 100% 背景重构、高清渲染与智能卖点分析。">
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="电商宝 - AI电商作图神器，一键生成淘宝/京东/小红书营销图">
+    <title>电商宝 - AI 电商视觉助手</title>
+    
     <script>
-        // 修复 "process is not defined" 错误，确保 SDK 能读取到注入的 API_KEY
-        window.process = window.process || { env: {} };
+      window.process = {
+        env: {
+          NODE_ENV: 'production',
+          // 这里是为了兼容可能存在的旧代码引用，实际上 Vite 会处理 import.meta.env
+          VITE_API_KEY: '' 
+        }
+      };
     </script>
-    <style>
-        body { 
-          font-family: 'Inter', sans-serif; 
-          background-color: #FDFCFB;
-          color: #1E293B;
-          overflow-x: hidden;
-        }
-        .vision-shadow {
-          box-shadow: 0 20px 50px -12px rgba(249, 115, 22, 0.15);
-        }
-        @keyframes fill-progress {
-          from { width: 0%; }
-          to { width: 100%; }
-        }
-        .animate-fill {
-          animation: fill-progress 2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-        }
-        .bg-grid-slate {
-          background-image: radial-gradient(circle, #e2e8f0 1px, transparent 1px);
-          background-size: 24px 24px;
-        }
-    </style>
-<script type="importmap">
-{
-  "imports": {
-    "react": "https://esm.sh/react@18.3.1",
-    "react/": "https://esm.sh/react@18.3.1/",
-    "react-dom": "https://esm.sh/react-dom@18.3.1",
-    "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
-    "react-dom/": "https://esm.sh/react-dom@18.3.1/",
-    "lucide-react": "https://esm.sh/lucide-react@0.460.0?deps=react@18.3.1",
-    "@google/genai": "https://esm.sh/@google/genai@1.41.0",
-    "vite": "https://esm.sh/vite@^7.3.1",
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.4"
-  }
-}
-</script>
-</head>
-<body class="antialiased bg-grid-slate">
+  </head>
+  <body>
     <div id="root"></div>
-    <script type="module" src="index.tsx"></script>
-</body>
+    
+    <script type="module" src="/src/index.tsx"></script>
+  </body>
 </html>
