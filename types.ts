@@ -10,6 +10,8 @@ export enum ScenarioType {
   LIVE_GREEN_SCREEN = 'LIVE_GREEN_SCREEN'        // 绿幕直播背景图
 }
 
+export type EcommerceUseCase = ScenarioType;
+
 export interface TextConfig {
   title: string;
   detail: string;

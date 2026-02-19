@@ -8,11 +8,15 @@ export async function onRequestPost(context: { env: { API_KEY: string }; request
     const payload = await request.json();
     const { model, contents, config } = payload;
 
-    // 优先从环境变量读取，如果 process.env 不存在则从 context.env 读取（Cloudflare 标准）
+    // 核心安全：API KEY 仅在服务端持有
     const apiKey = env.API_KEY || process.env.API_KEY;
     
     if (!apiKey) {
-      throw new Error("API_KEY_MISSING");
+      console.error("[BFF] Missing API_KEY in environment");
+      return new Response(JSON.stringify({ 
+        error: "CONFIG_ERROR", 
+        message: "服务端未配置 API_KEY，请在项目设置中添加环境变量。" 
+      }), { status: 500 });
     }
 
     const ai = new GoogleGenAI({ apiKey });
@@ -23,20 +27,19 @@ export async function onRequestPost(context: { env: { API_KEY: string }; request
       config: config || {}
     });
 
-    // 按照 SDK 指南使用 getter 访问文本
     return new Response(JSON.stringify({
       text: response.text,
       candidates: response.candidates
     }), {
       headers: { 
         "Content-Type": "application/json",
-        "Cache-Control": "no-cache"
+        "X-AI-Gateway": "E-Commerce-Pro-3.1"
       }
     });
   } catch (error: any) {
-    console.error("[Gemini BFF Critical Error]:", error);
+    console.error("[Gemini Gateway Error]:", error);
     return new Response(JSON.stringify({ 
-      error: "SERVER_AI_EXCEPTION", 
+      error: "AI_GATEWAY_EXCEPTION", 
       message: error.message 
     }), {
       status: 500,
