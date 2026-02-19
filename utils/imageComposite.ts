@@ -1,28 +1,28 @@
 import { removeBackground } from "@imgly/background-removal";
-import { TextConfig } from "../types";
+import { TextConfig, MarketAnalysis } from "../types";
 
 /**
- * 核心引擎：空景舞台合成方案
+ * 物理级环境融合引擎
  */
 export async function processFinalImage(
   aiBackgroundUrl: string,
   originalImageBase64: string,
-  textConfig: TextConfig
+  textConfig: TextConfig,
+  analysis: MarketAnalysis
 ): Promise<string> {
   return new Promise(async (resolve, reject) => {
     try {
-      // 1. 提取商品前景 (WASM 纯前端抠图)
+      // 1. 提取商品前景
       const blob = await fetch(originalImageBase64).then(res => res.blob());
       const mattedBlob = await removeBackground(blob);
       const mattedUrl = URL.createObjectURL(mattedBlob);
 
-      // 2. 并行加载资源
+      // 2. 加载资源
       const [bgImg, fgImg] = await Promise.all([
         loadImage(aiBackgroundUrl),
         loadImage(mattedUrl)
       ]);
 
-      // 3. 初始化主画布
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d', { willReadFrequently: true });
       if (!ctx) throw new Error("Canvas context failed");
@@ -30,80 +30,94 @@ export async function processFinalImage(
       canvas.width = bgImg.width;
       canvas.height = bgImg.height;
 
-      // ---------------------------------------------------------
-      // 第一层：绘制 AI 渲染的纯空景舞台 (提供光影氛围)
-      // ---------------------------------------------------------
+      // 第一层：底图
       ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
 
-      // ---------------------------------------------------------
-      // 第二层：商品物理合成 (核心逻辑)
-      // ---------------------------------------------------------
-      // 智能缩放计算：保持 aspect ratio，占据画布高度约 60-70%
+      // 3. 计算商品布局
       const paddingScale = 0.65;
-      let fgWidth, fgHeight;
       const fgRatio = fgImg.width / fgImg.height;
       const canvasRatio = canvas.width / canvas.height;
-
+      let fw, fh;
       if (fgRatio > canvasRatio) {
-        // 商品太宽
-        fgWidth = canvas.width * paddingScale;
-        fgHeight = fgWidth / fgRatio;
+        fw = canvas.width * paddingScale;
+        fh = fw / fgRatio;
       } else {
-        // 商品太高
-        fgHeight = canvas.height * paddingScale;
-        fgWidth = fgHeight * fgRatio;
+        fh = canvas.height * paddingScale;
+        fw = fh * fgRatio;
       }
+      const fx = (canvas.width - fw) / 2;
+      const fy = (canvas.height - fh) * 0.65;
 
-      // 计算位置：水平居中，垂直偏下（模拟站在平面上，重心在 60% 位置）
-      const x = (canvas.width - fgWidth) / 2;
-      const y = (canvas.height - fgHeight) * 0.65;
-
-      // --- 物理阴影补偿 (Grounding Shadows) ---
-      ctx.save();
-      // A. 环境遮蔽阴影 (Ambient Occlusion style)
-      ctx.shadowColor = "rgba(0, 0, 0, 0.45)";
-      ctx.shadowBlur = 50;
-      ctx.shadowOffsetX = 0;
-      ctx.shadowOffsetY = 25;
+      // ---------------------------------------------------------
+      // 第二层：高级投影算法 (Matrix-Based Cast Shadow)
+      // ---------------------------------------------------------
       
-      // B. 接触点强化影 (Contact Shadow)
-      // 绘制一个微小的模糊圆角矩形作为接触点加深
-      const contactCtx = canvas.getContext('2d');
-      if (contactCtx) {
-        ctx.beginPath();
-        ctx.ellipse(x + fgWidth / 2, y + fgHeight - 5, fgWidth * 0.4, 15, 0, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(0,0,0,0.15)";
-        ctx.fill();
-      }
+      // 创建离屏阴影遮罩
+      const shadowCanvas = document.createElement('canvas');
+      shadowCanvas.width = fw;
+      shadowCanvas.height = fh;
+      const sctx = shadowCanvas.getContext('2d')!;
+      sctx.drawImage(fgImg, 0, 0, fw, fh);
+      sctx.globalCompositeOperation = 'source-in';
+      sctx.fillStyle = 'black';
+      sctx.fillRect(0, 0, fw, fh);
 
-      // 绘制原始商品 (100% 物理细节，无 AI 篡改)
-      ctx.drawImage(fgImg, x, y, fgWidth, fgHeight);
+      // 绘制落影 (Cast Shadow)
+      ctx.save();
+      // 基于光源方向计算偏斜矩阵
+      // 默认 Top-Left 光源，阴影向右下方拉长
+      let skewX = 0.5; 
+      let scaleY = 0.3;
+      if (analysis.lightingDirection.toLowerCase().includes('right')) skewX = -0.5;
+      if (analysis.perspective.toLowerCase().includes('high') || analysis.perspective.toLowerCase().includes('top')) scaleY = 0.5;
+
+      ctx.globalAlpha = 0.25;
+      ctx.filter = 'blur(25px)';
+      // 矩阵变换：位移到商品底部，应用偏斜和缩放
+      ctx.setTransform(1, 0, skewX, scaleY, fx + (fw * 0.1), fy + fh);
+      ctx.drawImage(shadowCanvas, 0, -fh, fw, fh);
+      ctx.restore();
+
+      // 绘制接触影 (Contact Occlusion) - 极浓、短促的根部阴影
+      ctx.save();
+      ctx.globalAlpha = 0.5;
+      ctx.filter = 'blur(8px)';
+      ctx.beginPath();
+      ctx.ellipse(fx + fw/2, fy + fh, fw * 0.45, 12, 0, 0, Math.PI * 2);
+      ctx.fillStyle = 'black';
+      ctx.fill();
       ctx.restore();
 
       // ---------------------------------------------------------
-      // 第三层：矢量文字排版 (零乱码)
+      // 第三层：商品本体与环境光包裹
+      // ---------------------------------------------------------
+      ctx.save();
+      // 模拟微弱的环境光反射 (边缘融合)
+      ctx.shadowColor = "transparent";
+      ctx.drawImage(fgImg, fx, fy, fw, fh);
+      
+      // 环境光覆盖层 (Blend mode: Overlay)
+      ctx.globalCompositeOperation = 'overlay';
+      ctx.globalAlpha = 0.05;
+      ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height, fx, fy, fw, fh);
+      ctx.restore();
+
+      // ---------------------------------------------------------
+      // 第四层：文字排版
       // ---------------------------------------------------------
       if (textConfig.title || textConfig.detail) {
         renderText(ctx, canvas.width, canvas.height, textConfig);
       }
 
-      // 导出高保真结果
       const finalBase64 = canvas.toDataURL('image/png', 0.95);
-      
-      // 内存管理
       URL.revokeObjectURL(mattedUrl);
       resolve(finalBase64);
-
     } catch (error) {
-      console.error("Composite Engine Error:", error);
       reject(error);
     }
   });
 }
 
-/**
- * 图片加载工具
- */
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -114,51 +128,29 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-/**
- * 矢量文字排版引擎
- */
 function renderText(ctx: CanvasRenderingContext2D, w: number, h: number, config: TextConfig) {
   const isVertical = h > w;
   ctx.save();
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-
-  // 1. 主标题渲染
   if (config.title) {
-    const fontSize = Math.floor(w * 0.085);
-    ctx.font = `900 ${fontSize}px "PingFang SC", "Microsoft YaHei", sans-serif`;
-    
-    // 文本立体感
-    ctx.shadowColor = "rgba(0,0,0,0.6)";
-    ctx.shadowBlur = 12;
-    ctx.shadowOffsetY = 4;
-    
-    const titleY = isVertical ? h * 0.12 : h * 0.82;
+    const fs = Math.floor(w * 0.08);
+    ctx.font = `900 ${fs}px sans-serif`;
+    ctx.shadowColor = "rgba(0,0,0,0.5)"; ctx.shadowBlur = 10;
     ctx.fillStyle = "#FFFFFF";
-    ctx.fillText(config.title, w / 2, titleY);
+    ctx.fillText(config.title, w / 2, isVertical ? h * 0.15 : h * 0.82);
   }
-
-  // 2. 副标题/胶囊卖点渲染
   if (config.detail) {
-    const fontSize = Math.floor(w * 0.045);
-    ctx.font = `600 ${fontSize}px "PingFang SC", "Microsoft YaHei", sans-serif`;
-    ctx.shadowBlur = 0;
-    ctx.shadowOffsetY = 0;
-    
-    const detailY = isVertical ? h * 0.20 : h * 0.91;
-    
-    // 绘制品质胶囊底框
-    const textWidth = ctx.measureText(config.detail).width;
-    const px = 24;
-    const py = 12;
-    ctx.fillStyle = "rgba(0,0,0,0.45)";
+    const fs = Math.floor(w * 0.04);
+    ctx.font = `600 ${fs}px sans-serif`;
+    const dy = isVertical ? h * 0.22 : h * 0.91;
+    const tw = ctx.measureText(config.detail).width;
+    ctx.fillStyle = "rgba(0,0,0,0.4)";
     ctx.beginPath();
-    ctx.roundRect(w/2 - textWidth/2 - px, detailY - fontSize/2 - py, textWidth + px*2, fontSize + py*2, 40);
+    ctx.roundRect(w/2 - tw/2 - 15, dy - fs/2 - 8, tw + 30, fs + 16, 30);
     ctx.fill();
-
     ctx.fillStyle = "#FFFFFF";
-    ctx.fillText(config.detail, w / 2, detailY);
+    ctx.fillText(config.detail, w / 2, dy);
   }
-
   ctx.restore();
 }
