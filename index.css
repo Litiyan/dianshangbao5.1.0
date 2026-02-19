@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-[#FDFCFB] text-slate-900;
+  }
+}
+
+.bg-grid {
+  background-image: radial-gradient(#e2e8f0 1px, transparent 1px);
+  background-size: 30px 30px;
+}
+
+/* 增强按钮交互感 */
+.btn-primary {
+  @apply bg-orange-500 hover:bg-orange-600 text-white rounded-[24px] shadow-lg shadow-orange-200 
+  transition-all active:scale-[0.98] disabled:bg-slate-200 disabled:shadow-none;
+}
+
+.card-container {
+  @apply bg-white rounded-[40px] p-8 border border-slate-100 shadow-sm;
+}

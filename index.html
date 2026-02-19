@@ -5,35 +5,39 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>电商宝 Pro - AI 商业视觉重构专家</title>
     <meta name="description" content="电商宝 - 专为跨境、淘宝、京东商家打造的 AI 电商作图神器。">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
     <script>
-        // 关键：模拟 Node.js 环境，确保 SDK 能读取 process.env.API_KEY
+        // 环境模拟与初始化
         window.process = { env: { NODE_ENV: 'production' } };
     </script>
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #FDFCFB; color: #1E293B; margin: 0; }
-        .bg-grid { background-image: radial-gradient(#e2e8f0 1px, transparent 1px); background-size: 30px 30px; }
-        #root { min-height: 100vh; }
+        /* 极致防御性 CSS：防止在构建未完成前出现白屏 */
+        body, html, #root { 
+            margin: 0; padding: 0; min-height: 100vh; 
+            background-color: #FDFCFB; font-family: system-ui, -apple-system, sans-serif;
+        }
+        .loading-initial {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 14px; color: #f97316; font-weight: bold;
+        }
     </style>
-    <script type="importmap">
+<script type="importmap">
 {
   "imports": {
-    "react": "https://esm.sh/react@18.3.1",
-    "react-dom": "https://esm.sh/react-dom@18.3.1",
-    "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
-    "lucide-react": "https://esm.sh/lucide-react@0.460.0?deps=react@18.3.1",
-    "@google/genai": "https://esm.sh/@google/genai@1.41.0",
+    "react": "https://esm.sh/react@^19.2.4",
     "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
     "react/": "https://esm.sh/react@^19.2.4/",
     "vite": "https://esm.sh/vite@^7.3.1",
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.4"
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.4",
+    "@google/genai": "https://esm.sh/@google/genai@^1.42.0",
+    "lucide-react": "https://esm.sh/lucide-react@^0.575.0"
   }
 }
 </script>
 </head>
-<body class="antialiased bg-grid">
-    <div id="root"></div>
-    <script type="module" src="index.tsx"></script>
+<body class="antialiased">
+    <div id="root">
+        <div class="loading-initial">AI 核心加载中...</div>
+    </div>
+    <script type="module" src="/index.tsx"></script>
 </body>
 </html>
