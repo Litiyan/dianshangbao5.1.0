@@ -3,17 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>电商宝 Pro v3.2 - AI 视觉重构专家</title>
+    <title>电商宝 Pro - AI 商业视觉重构专家</title>
     <meta name="description" content="电商宝 - 专为跨境、淘宝、京东商家打造的 AI 电商作图神器。">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
     <script>
-        // 关键修复：模拟 Node.js 环境，防止 SDK 或某些库读取 process.env 时崩溃
+        // 关键：模拟 Node.js 环境，确保 SDK 能读取 process.env.API_KEY
         window.process = { env: { NODE_ENV: 'production' } };
     </script>
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #FDFCFB; color: #1E293B; }
+        body { font-family: 'Inter', sans-serif; background-color: #FDFCFB; color: #1E293B; margin: 0; }
         .bg-grid { background-image: radial-gradient(#e2e8f0 1px, transparent 1px); background-size: 30px 30px; }
+        #root { min-height: 100vh; }
     </style>
     <script type="importmap">
 {

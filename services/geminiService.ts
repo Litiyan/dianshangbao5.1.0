@@ -1,12 +1,11 @@
-
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import { MarketAnalysis, ScenarioType, TextConfig } from "../types";
 
-// 初始化函数：每次调用动态创建实例，确保获取最新注入的 API_KEY
+// 动态初始化实例
 const getAI = () => new GoogleGenAI({ apiKey: (process.env as any).API_KEY });
 
 /**
- * 智能商品分析 (Gemini 3 Flash)
+ * 智能商品分析 (使用 Gemini 3 Flash 进行多图联合理解)
  */
 export async function analyzeProduct(base64Images: string[]): Promise<MarketAnalysis> {
   try {
@@ -16,27 +15,40 @@ export async function analyzeProduct(base64Images: string[]): Promise<MarketAnal
       contents: {
         parts: [
           ...base64Images.map(data => ({ inlineData: { data, mimeType: 'image/png' } })),
-          { text: "作为电商专家，请分析这些产品图。输出 JSON：{ \"productType\": \"名称\", \"targetAudience\": \"受众\", \"sellingPoints\": [\"卖点\"], \"suggestedPrompt\": \"构图指令\", \"isApparel\": 布尔值 }" }
+          { text: "分析以上产品图片。识别产品类型、核心受众、视觉卖点，并给出一个用于生图的专业构图指令。如果是服装类请标注。返回 JSON 格式。" }
         ]
       },
-      config: { responseMimeType: "application/json" }
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            productType: { type: Type.STRING },
+            targetAudience: { type: Type.STRING },
+            sellingPoints: { type: Type.ARRAY, items: { type: Type.STRING } },
+            suggestedPrompt: { type: Type.STRING },
+            isApparel: { type: Type.BOOLEAN }
+          },
+          required: ["productType", "targetAudience", "sellingPoints", "suggestedPrompt", "isApparel"]
+        }
+      }
     });
 
     return JSON.parse(response.text || "{}");
   } catch (e) {
-    console.error("Analysis Error:", e);
+    console.error("AI Analysis Error:", e);
     return {
       productType: "通用商品",
       targetAudience: "大众消费者",
-      sellingPoints: ["高品质", "商业设计"],
-      suggestedPrompt: "Professional studio lighting",
+      sellingPoints: ["高品质设计", "现代极简"],
+      suggestedPrompt: "Professional studio lighting, high resolution",
       isApparel: false
     };
   }
 }
 
 /**
- * 商业场景重构 (Gemini 2.5 Flash Image)
+ * 商业场景重构 (使用 Gemini 2.5 Flash Image)
  */
 export async function generateScenarioImage(
   base64Images: string[],
@@ -48,27 +60,24 @@ export async function generateScenarioImage(
 ): Promise<string> {
   const ai = getAI();
   
-  const textInstruction = (textConfig.title || textConfig.detail)
-    ? `ADD TYPOGRAPHY: Overlay "${textConfig.title}" and "${textConfig.detail}" in a premium minimalist font.`
-    : `NO TEXT: Clean product shot only.`;
-
+  // 构建增强提示词
   const prompt = `
-    TASK: High-end E-commerce Scene Reconstruction.
-    PRODUCT: ${analysis.productType}.
-    SCENARIO: ${scenario}.
-    INTENT: ${userIntent}.
-    ${modelNationality ? `MODEL: Featuring a ${modelNationality}.` : ''}
-    ${textInstruction}
-    STYLE: Professional product photography, 8k, sharp focus on the original product.
+    TASK: E-commerce High-End Scene Reconstruction.
+    PRODUCT TYPE: ${analysis.productType}.
+    TARGET SCENARIO: ${scenario}.
+    USER SPECIFIC INTENT: ${userIntent}.
+    ${modelNationality ? `MODEL: Interaction with ${modelNationality}.` : ''}
+    ${textConfig.title ? `TYPOGRAPHY: Integrate text "${textConfig.title}" naturally into the design.` : ''}
+    STYLE: Professional commercial photography, 8k, sharp focus on product.
+    BASE PROMPT: ${analysis.suggestedPrompt}.
   `;
 
-  // 映射业务场景比例
-  const ratioMap: Record<string, any> = {
+  // 场景比例映射
+  const ratioMap: Record<string, "1:1" | "9:16" | "16:9" | "3:4" | "4:3"> = {
     [ScenarioType.MOMENTS_POSTER]: "9:16",
     [ScenarioType.LIVE_OVERLAY]: "16:9",
-    [ScenarioType.LIVE_GREEN_SCREEN]: "16:9",
     [ScenarioType.PLATFORM_MAIN_DETAIL]: "1:1",
-    [ScenarioType.CROSS_BORDER_LOCAL]: "1:1"
+    [ScenarioType.MODEL_REPLACEMENT]: "3:4"
   };
 
   const response = await ai.models.generateContent({
@@ -86,11 +95,15 @@ export async function generateScenarioImage(
     }
   });
 
-  // 寻找图片输出部分
-  const imagePart = response.candidates?.[0]?.content?.parts.find(p => p.inlineData);
-  if (imagePart?.inlineData) {
-    return `data:image/png;base64,${imagePart.inlineData.data}`;
+  // 提取生成的图像部分
+  const candidate = response.candidates?.[0];
+  if (!candidate) throw new Error("AI 未生成结果");
+
+  for (const part of candidate.content.parts) {
+    if (part.inlineData) {
+      return `data:image/png;base64,${part.inlineData.data}`;
+    }
   }
   
-  throw new Error("AI 渲染未返回有效图片，请尝试调整构思。");
+  throw new Error("未能从 AI 响应中提取到图像数据。");
 }
