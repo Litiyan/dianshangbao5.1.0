@@ -1,11 +1,11 @@
 
-import { MarketAnalysis, ScenarioType, TextConfig, EcommerceUseCase } from "../types";
+import { MarketAnalysis, ScenarioType, TextConfig } from "../types";
 
 /**
- * 核心调用逻辑：通过项目内置的 /api/gemini 接口进行转发
- * 这样可以确保 API Key 安全地留在服务端，并避开前端环境对 SDK 的兼容性限制
+ * 稳健的通用调用函数 (原生 Fetch)
+ * 调用内部部署的 /api/gemini 路由，由后端函数安全处理 API Key 和 SDK
  */
-async function callBff(payload: any) {
+async function callBffGateway(payload: any) {
   try {
     const response = await fetch('/api/gemini', {
       method: 'POST',
@@ -14,86 +14,79 @@ async function callBff(payload: any) {
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `API 服务异常 (${response.status})`);
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || `网络异常: ${response.status}`);
     }
 
     return await response.json();
   } catch (error: any) {
-    console.error("AI 路由调用失败:", error);
-    throw new Error(error.message || "无法连接到 AI 渲染引擎，请检查网络或部署设置。");
+    console.error("Gateway Call Failed:", error);
+    throw new Error(error.message || "生成服务连接失败");
   }
 }
 
 /**
- * 1. 商品 DNA 深度分析
- * 采用稳定模式，优先确保生成流程不中断
+ * 1. 商品 DNA 智能分析
  */
 export async function analyzeProduct(base64Images: string[]): Promise<MarketAnalysis> {
-  // 采用异步但可预期的分析结构，防止部署后初次加载崩溃
   try {
     const payload = {
       model: 'gemini-3-flash-preview',
       contents: {
         parts: [
           ...base64Images.map(data => ({ inlineData: { data, mimeType: 'image/png' } })),
-          { text: "Analyze this product. Output JSON: { productType: string, targetAudience: string, sellingPoints: string[], suggestedPrompt: string, isApparel: boolean }" }
+          { text: "Task: Product DNA Analysis. Return ONLY JSON: { productType: string, targetAudience: string, sellingPoints: string[], suggestedPrompt: string, isApparel: boolean }" }
         ]
       },
       config: { responseMimeType: "application/json" }
     };
     
-    const result = await callBff(payload);
-    const analysis = JSON.parse(result.text || "{}");
+    const result = await callBffGateway(payload);
+    const data = JSON.parse(result.text || "{}");
     
     return {
-      productType: analysis.productType || "商品",
-      targetAudience: analysis.targetAudience || "通用受众",
-      sellingPoints: analysis.sellingPoints || ["高品质", "商业设计"],
-      suggestedPrompt: analysis.suggestedPrompt || "Professional studio photography",
-      isApparel: analysis.isApparel || false
+      productType: data.productType || "电商商品",
+      targetAudience: data.targetAudience || "通用受众",
+      sellingPoints: data.sellingPoints || ["专业构图", "极致细节"],
+      suggestedPrompt: data.suggestedPrompt || "Commercial product photography",
+      isApparel: data.isApparel || false
     };
   } catch (e) {
-    // 降级策略：返回基础数据模型
     return {
-      productType: "电商商品",
-      targetAudience: "大众消费者",
-      sellingPoints: ["极致质感", "专业构图"],
-      suggestedPrompt: "High-end product shot",
+      productType: "商品",
+      targetAudience: "通用",
+      sellingPoints: ["高品质", "商业摄影"],
+      suggestedPrompt: "Studio shot",
       isApparel: false
     };
   }
 }
 
 /**
- * 2. 核心商业场景生成
- * 严格适配 App.tsx 的调用签名，整合用户创意意图
+ * 2. 核心商业生图 (原生 Fetch 实现)
  */
 export async function generateScenarioImage(
   base64Images: string[],
-  scenario: ScenarioType | EcommerceUseCase,
+  scenario: ScenarioType,
   analysis: MarketAnalysis,
   userIntent: string,
   textConfig: TextConfig,
   modelNationality: string = ""
 ): Promise<string> {
   
-  const textInstruction = (textConfig.title || textConfig.detail)
-    ? `Required Overlay Text: Title="${textConfig.title}", Details="${textConfig.detail}". Apply professional typography and ensure high-end commercial aesthetic.`
-    : `Pure visual focus, no text overlay.`;
+  const textPrompt = (textConfig.title || textConfig.detail)
+    ? `GRAPHIC DESIGN: Overlay text "${textConfig.title}" and subtitle "${textConfig.detail}" in a professional commercial layout.`
+    : `NO TEXT: Pure photographic output.`;
 
-  const finalPrompt = `
-    Role: Senior E-commerce Visual Director.
-    Scenario: ${scenario}.
-    Context: ${analysis.productType} with key features [${analysis.sellingPoints.join('/')}].
-    User Creative Intent: ${userIntent}.
-    ${modelNationality ? `Regional Localization: Features a ${modelNationality}.` : ''}
-    ${textInstruction}
-    Technical Standard: 8k resolution, cinematic lighting, photorealistic textures, flawless background integration.
-    Requirement: Maintain 100% fidelity of the product's 3D structure using the provided multi-angle references.
+  const prompt = `
+    ROLE: Professional E-commerce Visual Director.
+    TASK: Generate a ${scenario} scene for ${analysis.productType}.
+    USER INTENT: ${userIntent}.
+    ${modelNationality ? `MODEL: Featuring a ${modelNationality}.` : ''}
+    ${textPrompt}
+    MANDATORY: 8k photorealistic, cinematic lighting, 100% product fidelity from references.
   `;
 
-  // 比例智能适配
   const ratioMap: Record<string, string> = {
     [ScenarioType.MOMENTS_POSTER]: "9:16",
     [ScenarioType.LIVE_OVERLAY]: "16:9",
@@ -106,7 +99,7 @@ export async function generateScenarioImage(
     contents: {
       parts: [
         ...base64Images.map(data => ({ inlineData: { data, mimeType: 'image/png' } })),
-        { text: finalPrompt }
+        { text: prompt }
       ]
     },
     config: {
@@ -116,39 +109,32 @@ export async function generateScenarioImage(
     }
   };
 
-  const result = await callBff(payload);
-  
-  // 从返回的 candidates 中提取 inlineData 字节码
+  const result = await callBffGateway(payload);
   const imgData = result.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData)?.inlineData?.data;
   
-  if (!imgData) {
-    throw new Error("AI 引擎未返回有效图像数据，请尝试简化描述。");
-  }
-
+  if (!imgData) throw new Error("AI 未返回图片，请稍后重试");
   return `data:image/png;base64,${imgData}`;
 }
 
 /**
- * 3. 模特换装专用逻辑 (增强兼容性)
+ * 3. 模特生成专用
  */
 export async function generateModelImage(
   base64Image: string,
   analysis: MarketAnalysis,
   showFace: boolean = true
 ): Promise<string> {
-  const prompt = `Professional E-commerce Model Shot: High-fashion ${analysis.productType} showcase. ${showFace ? 'Clear professional face.' : 'Elegant headless crop, focus on texture.'} Studio lighting.`;
-  
   const payload = {
     model: 'gemini-2.5-flash-image',
     contents: {
       parts: [
         { inlineData: { data: base64Image, mimeType: 'image/png' } },
-        { text: prompt }
+        { text: `Fashion photography: A professional model wearing this ${analysis.productType}. ${showFace ? 'Clear face.' : 'Headless crop.'} Studio light.` }
       ]
     }
   };
 
-  const result = await callBff(payload);
+  const result = await callBffGateway(payload);
   const imgData = result.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData)?.inlineData?.data;
   
   if (!imgData) throw new Error("模特重构失败");
