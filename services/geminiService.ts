@@ -16,56 +16,47 @@ function buildScenarioPrompt(
     [ScenarioType.PLATFORM_MAIN_DETAIL]: `
       Role: Top-tier Commercial Still-life Photographer. 
       Technique: 50mm lens, sharp focus on the product, f/8 aperture for deep depth of field. 
-      Lighting: Professional studio 3-point lighting (key, fill, and back lights). 
-      Background: Clean, minimalist background (subtle gradient or soft reflection) that creates zero distraction. 
-      Vibe: High-conversion Taobao/JD style, premium texture, crisp details.`,
+      Lighting: Professional studio 3-point lighting. 
+      Background: Clean, minimalist background (subtle gradient or soft reflection). 
+      Vibe: High-conversion Taobao/JD style.`,
 
     [ScenarioType.BUYER_SHOW]: `
       Role: Real consumer posting a social media review. 
-      Technique: Shot on iPhone 15 Pro, handheld, slightly imperfect but aesthetic composition. 
-      Lighting: Natural indoor room lighting with soft window light, no professional studio lights. 
-      Environment: Casual lifestyle setting (e.g., real living room, a genuine wooden desk with minor everyday items). 
-      Vibe: UGC (User Generated Content) style, ultra-authentic, relatable, high trust factor.`,
+      Technique: Shot on iPhone 15 Pro, handheld. 
+      Lighting: Natural indoor room lighting, no professional studio lights. 
+      Environment: Casual lifestyle setting (living room, genuine wooden desk).`,
 
     [ScenarioType.MOMENTS_POSTER]: `
       Role: High-end Social Media Art Director. 
-      Composition: 9:16 vertical. Heavy use of negative space (deliberate empty space) at the top or bottom for typography placement. 
-      Technique: 35mm lens for wide lifestyle impact. 
-      Vibe: Emotional, cinematic color grading, 'Instaworthy' aesthetic, soft shadows, airy and premium feel.`,
+      Composition: 9:16 vertical. Preserve negative space at the top or bottom for graphic elements. 
+      Technique: 35mm lens for lifestyle impact. 
+      Vibe: Emotional, cinematic color grading, Instaworthy aesthetic.`,
 
     [ScenarioType.LIVE_GREEN_SCREEN]: `
       Role: Virtual Production Set Designer. 
-      Technique: Extremely shallow depth of field (f/1.2) creating heavy bokeh blur for the background. 
-      Context: This is a backdrop for a professional live streamer. 
-      Setting: Luxurious showroom or futuristic high-tech studio matching the product's identity. 
-      Lighting: Even, soft ambient glow, consistent perspective with the product.`,
+      Technique: Extremely shallow depth of field (f/1.2) creating heavy bokeh blur. 
+      Setting: Luxurious showroom or high-tech studio.`,
 
     [ScenarioType.MODEL_REPLACEMENT]: `
       Role: Vogue Fashion Photographer. 
       Technique: High-fashion portraiture. Focus on photorealistic human model features. 
-      Skin: Emphasize extremely realistic skin texture (micro-pores, natural subsurface scattering, peach fuzz). 
-      Vibe: High-end lifestyle, diverse and authentic facial features, anti-uncanny valley, masterpiece quality.`,
+      Vibe: Diverse facial features, anti-uncanny valley, masterpiece quality.`,
 
     [ScenarioType.CROSS_BORDER_LOCAL]: `
       Role: International Brand Strategist. 
-      Context: Localize for global markets (Amazon/Shopee). 
-      Environment: Local authentic architecture and lifestyle decor matching Western or SEA demographics. 
-      Lighting: Bright, sunny, high-key commercial lighting popular in international e-commerce.`,
+      Context: Localize for Amazon/Shopee style. 
+      Environment: Local authentic architecture and lifestyle decor matching Western/SEA demographics.`,
 
     [ScenarioType.TEXT_EDIT_TRANSLATE]: `
-      Role: Graphic Design Master. 
-      Task: Remove all messy or foreign text from the original product. 
-      Layout: Optimize product placement to allow for clean, bilingual typography. 
-      Vibe: Modern Swiss-design style, clean lines, high legibility.`,
+      Role: Professional Photo Editor. 
+      Task: Remove all existing text, watermarks, or logos from the original. Clean surface only.`,
 
     [ScenarioType.LIVE_OVERLAY]: `
       Role: UI/UX Live Broadcast Designer. 
-      Style: Semi-transparent technological glassmorphism. 
-      Features: Neon accents, placeholder spaces for branding, interactive UI elements integrated into the 3D space. 
-      Lighting: Dynamic, vibrant studio colors.`
+      Style: Semi-transparent technological glassmorphism, neon accents.`
   };
 
-  // 组装最终指令
+  // 组装最终指令 - 强制加入防乱码指令
   return `
     [ACTING ROLE]
     ${scenarioMatrix[scenario] || "Senior Commercial Photographer"}
@@ -73,17 +64,17 @@ function buildScenarioPrompt(
     [PRODUCT CONTEXT]
     Product Type: ${analysis.productType}
     Core Selling Points: ${analysis.sellingPoints.join(', ')}
-    AI Suggested Style: ${analysis.suggestedPrompt}
 
     [USER SPECIFIC INTENT]
     ${userIntent || "Optimize for maximum commercial conversion."}
 
-    [TYPOGRAPHY INTEGRATION]
-    Planned Text: Title "${textConfig.title}", Details "${textConfig.detail}". 
-    Instruction: Preserve spatial depth. Integrate text fields into the visual hierarchy without overlapping key product features.
+    [CRITICAL RESTRICTION - TYPOGRAPHY]
+    !!! IMPORTANT: DO NOT RENDER ANY TEXT, LETTERS, CHINESE CHARACTERS, OR NUMBERS ON THE IMAGE. 
+    The resulting image MUST BE A PURE VISUAL BACKGROUND WITHOUT ANY TEXT OVERLAY. 
+    Preserve clean space for the product.
 
     [TECHNICAL CONSTRAINTS]
-    Quality: 8k resolution, photorealistic, cinematic commercial lighting, masterpiece, no distorted textures, correct physical shadows.
+    Quality: 8k resolution, photorealistic, cinematic commercial lighting, masterpiece, correct physical shadows.
   `.trim();
 }
 
@@ -98,7 +89,7 @@ async function sendRequest(model: string, payload: any) {
   });
 
   if (response.status === 429) {
-    throw new Error("API 配额已耗尽，请确保 Cloudflare 后端已正确配置付费项目或稍后再试。");
+    throw new Error("API 配额已耗尽，请确保 Cloudflare 后端已正确配置付费项目。");
   }
 
   const data = await response.json();
@@ -149,7 +140,6 @@ export async function generateScenarioImage(
   textConfig: TextConfig
 ): Promise<string> {
   
-  // 使用场景矩阵构造高度专业化的 Prompt
   const finalPrompt = buildScenarioPrompt(scenario, analysis, userIntent, textConfig);
 
   const ratioMap: Record<string, string> = {
@@ -184,5 +174,5 @@ export async function generateScenarioImage(
     }
   }
 
-  throw new Error("AI 引擎未返回图像数据，请尝试调整意图描述或更换更清晰的素材。");
+  throw new Error("AI 引擎未返回图像数据，请稍后重试。");
 }
