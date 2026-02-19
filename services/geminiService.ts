@@ -1,117 +1,96 @@
-import { MarketAnalysis, ImageStyle, ImageCategory } from "../types";
 
-// ✅ 核心修改：指向我们自己的 Cloudflare 后端，而不是直接连 Google
-const API_ENDPOINT = '/api/gemini';
+import { GoogleGenAI } from "@google/genai";
+import { MarketAnalysis, ScenarioType, TextConfig } from "../types";
+
+// 初始化函数：每次调用动态创建实例，确保获取最新注入的 API_KEY
+const getAI = () => new GoogleGenAI({ apiKey: (process.env as any).API_KEY });
 
 /**
- * 通用 BFF 调用函数
- * 负责把数据打包发给 functions/api/gemini.ts
+ * 智能商品分析 (Gemini 3 Flash)
  */
-async function callGeminiBff(payload: any) {
+export async function analyzeProduct(base64Images: string[]): Promise<MarketAnalysis> {
   try {
-    console.log("正在呼叫后端:", API_ENDPOINT);
-    const response = await fetch(API_ENDPOINT, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+    const ai = getAI();
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: {
+        parts: [
+          ...base64Images.map(data => ({ inlineData: { data, mimeType: 'image/png' } })),
+          { text: "作为电商专家，请分析这些产品图。输出 JSON：{ \"productType\": \"名称\", \"targetAudience\": \"受众\", \"sellingPoints\": [\"卖点\"], \"suggestedPrompt\": \"构图指令\", \"isApparel\": 布尔值 }" }
+        ]
+      },
+      config: { responseMimeType: "application/json" }
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`服务请求失败 (${response.status}): ${errorText}`);
-    }
-
-    const data = await response.json();
-    return data;
-
-  } catch (error: any) {
-    console.error("BFF 调用失败:", error);
-    // 转换成用户能看懂的人话
-    if (error.message.includes("Failed to fetch")) {
-      throw new Error("网络连接中断，请检查您的网络或 Cloudflare 部署状态。");
-    }
-    throw error;
-  }
-}
-
-/**
- * 1. 分析产品 (调用后端 gemini-2.0-flash)
- */
-export async function analyzeProduct(base64Image: string): Promise<MarketAnalysis> {
-  const payload = {
-    action: 'analyze', // 告诉后端我要做分析
-    image: base64Image
-  };
-
-  try {
-    const result = await callGeminiBff(payload);
-    // 后端已经帮我们处理好 JSON 了，直接用
-    return result as MarketAnalysis;
-  } catch (error) {
-    console.error("分析失败:", error);
-    // 失败兜底数据，防止页面白屏
+    return JSON.parse(response.text || "{}");
+  } catch (e) {
+    console.error("Analysis Error:", e);
     return {
-      productType: "未识别商品",
-      targetAudience: "通用",
-      sellingPoints: ["高品质", "设计感"],
-      suggestedPrompt: "Product photography",
-      recommendedCategories: ["DISPLAY"],
-      marketingCopy: { title: "新品上市", shortDesc: "品质之选", tags: ["热销"] },
+      productType: "通用商品",
+      targetAudience: "大众消费者",
+      sellingPoints: ["高品质", "商业设计"],
+      suggestedPrompt: "Professional studio lighting",
       isApparel: false
     };
   }
 }
 
 /**
- * 2. 生成图片 (调用后端 gemini-2.5-flash-image)
+ * 商业场景重构 (Gemini 2.5 Flash Image)
  */
-export async function generateProductDisplay(
-  base64Image: string,
-  style: ImageStyle,
-  category: ImageCategory,
-  aspectRatio: string,
-  marketAnalysis: MarketAnalysis,
-  fineTunePrompts: string[],
-  isUltraHD: boolean,
-  chatHistory: { role: 'user' | 'assistant', text: string }[] = []
+export async function generateScenarioImage(
+  base64Images: string[],
+  scenario: ScenarioType,
+  analysis: MarketAnalysis,
+  userIntent: string,
+  textConfig: TextConfig,
+  modelNationality: string = ""
 ): Promise<string> {
+  const ai = getAI();
   
-  const payload = {
-    action: 'generate', // 告诉后端我要生图
-    image: base64Image,
-    params: {
-      style,
-      category,
-      aspectRatio,
-      marketAnalysis,
-      fineTunePrompts,
-      isUltraHD,
-      chatHistory
-    }
+  const textInstruction = (textConfig.title || textConfig.detail)
+    ? `ADD TYPOGRAPHY: Overlay "${textConfig.title}" and "${textConfig.detail}" in a premium minimalist font.`
+    : `NO TEXT: Clean product shot only.`;
+
+  const prompt = `
+    TASK: High-end E-commerce Scene Reconstruction.
+    PRODUCT: ${analysis.productType}.
+    SCENARIO: ${scenario}.
+    INTENT: ${userIntent}.
+    ${modelNationality ? `MODEL: Featuring a ${modelNationality}.` : ''}
+    ${textInstruction}
+    STYLE: Professional product photography, 8k, sharp focus on the original product.
+  `;
+
+  // 映射业务场景比例
+  const ratioMap: Record<string, any> = {
+    [ScenarioType.MOMENTS_POSTER]: "9:16",
+    [ScenarioType.LIVE_OVERLAY]: "16:9",
+    [ScenarioType.LIVE_GREEN_SCREEN]: "16:9",
+    [ScenarioType.PLATFORM_MAIN_DETAIL]: "1:1",
+    [ScenarioType.CROSS_BORDER_LOCAL]: "1:1"
   };
 
-  const result = await callGeminiBff(payload);
-  
-  if (result.image) {
-    return result.image; // 后端直接返回 Base64
+  const response = await ai.models.generateContent({
+    model: 'gemini-2.5-flash-image',
+    contents: {
+      parts: [
+        ...base64Images.map(data => ({ inlineData: { data, mimeType: 'image/png' } })),
+        { text: prompt }
+      ]
+    },
+    config: {
+      imageConfig: {
+        aspectRatio: ratioMap[scenario] || "1:1"
+      }
+    }
+  });
+
+  // 寻找图片输出部分
+  const imagePart = response.candidates?.[0]?.content?.parts.find(p => p.inlineData);
+  if (imagePart?.inlineData) {
+    return `data:image/png;base64,${imagePart.inlineData.data}`;
   }
   
-  throw new Error("生成失败：后端未返回图片数据");
-}
-
-// 占位函数，防止报错
-export async function generatePreview(base64Image: string) {
-    return generateProductDisplay(base64Image, 'MINIMALIST', 'DISPLAY', '1:1', {} as any, [], false);
-}
-
-export async function generateMarketingSuite(base64Image: string, analysis: any) {
-    // 简单起见，这里演示并发调用
-    return Promise.all([
-        generateProductDisplay(base64Image, 'MINIMALIST', 'DISPLAY', '1:1', analysis, [], false),
-        generateProductDisplay(base64Image, 'LIFESTYLE', 'SOCIAL', '3:4', analysis, [], false)
-    ]);
-}
-
-export async function generateModelImage(base64Image: string) {
-    return generateProductDisplay(base64Image, 'FASHION', 'MODEL', '3:4', {} as any, ['Asian model'], false);
+  throw new Error("AI 渲染未返回有效图片，请尝试调整构思。");
 }
