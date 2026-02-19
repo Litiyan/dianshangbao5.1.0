@@ -1,6 +1,10 @@
 
 import { GoogleGenAI } from "@google/genai";
 
+/**
+ * 这是 Cloudflare Pages / Vercel 的服务端函数
+ * 它具有访问环境变量的权限，且不会暴露给前端
+ */
 export async function onRequestPost(context: { env: { API_KEY: string }; request: Request }) {
   const { request, env } = context;
 
@@ -8,38 +12,42 @@ export async function onRequestPost(context: { env: { API_KEY: string }; request
     const payload = await request.json();
     const { model, contents, config } = payload;
 
-    // 核心安全：API KEY 仅在服务端持有
+    // 在服务端，我们从环境变量中安全获取 Key
+    // 支持 env 对象获取（Cloudflare）或 process.env（Node）
     const apiKey = env.API_KEY || process.env.API_KEY;
     
     if (!apiKey) {
-      console.error("[BFF] Missing API_KEY in environment");
+      console.error("[BFF] Missing API_KEY configuration");
       return new Response(JSON.stringify({ 
-        error: "CONFIG_ERROR", 
-        message: "服务端未配置 API_KEY，请在项目设置中添加环境变量。" 
+        error: "SERVER_CONFIG_ERROR", 
+        message: "服务端 API_KEY 未配置，请联系管理员。" 
       }), { status: 500 });
     }
 
-    const ai = new GoogleGenAI({ apiKey });
+    // 严格遵循 SDK 初始化规范
+    const ai = new GoogleGenAI({ apiKey: apiKey });
     
+    // 调用生成接口
     const response = await ai.models.generateContent({
       model: model || 'gemini-3-flash-preview',
-      contents,
+      contents: contents,
       config: config || {}
     });
 
+    // 返回解析后的结果
     return new Response(JSON.stringify({
       text: response.text,
       candidates: response.candidates
     }), {
       headers: { 
         "Content-Type": "application/json",
-        "X-AI-Gateway": "E-Commerce-Pro-3.1"
+        "Cache-Control": "no-store"
       }
     });
   } catch (error: any) {
-    console.error("[Gemini Gateway Error]:", error);
+    console.error("[Gemini BFF Critical Error]:", error);
     return new Response(JSON.stringify({ 
-      error: "AI_GATEWAY_EXCEPTION", 
+      error: "INTERNAL_AI_GATEWAY_ERROR", 
       message: error.message 
     }), {
       status: 500,
