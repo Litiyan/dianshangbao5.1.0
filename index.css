@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,900;1,900&family=JetBrains+Mono:wght@300;400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,900;1,900&family=Noto+Sans+SC:wght@300;400;700;900&family=Noto+Serif+SC:wght@700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,40 +6,41 @@
 
 @layer base {
   body {
-    @apply bg-[#F9F9F6] text-stone-800 antialiased overflow-x-hidden;
-    font-family: 'JetBrains Mono', "PingFang SC", "Microsoft YaHei", monospace;
-    cursor: crosshair;
+    @apply bg-[#FDFCFB] text-stone-800 antialiased overflow-x-hidden;
+    font-family: 'Noto Sans SC', sans-serif;
   }
 }
 
 @layer utilities {
   /* 顶级明亮毛玻璃材质 */
   .glass-morphism {
-    @apply bg-white/40 backdrop-blur-2xl border border-white/60 shadow-[0_20px_40px_-10px_rgba(0,0,0,0.08)];
+    @apply bg-white/60 backdrop-blur-3xl border border-white/60 shadow-[0_20px_40px_-10px_rgba(0,0,0,0.05)];
   }
 
-  /* 亮色输入框公式 */
+  /* 极致克莱因蓝文字渐变 */
+  .text-klein-gradient {
+    @apply bg-gradient-to-br from-[#002FA7] via-blue-600 to-indigo-900 bg-clip-text text-transparent;
+  }
+
+  /* 亮色输入框 */
   .input-glass {
-    @apply bg-white/50 border border-stone-200 focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10 transition-all outline-none text-stone-800;
-  }
-
-  /* 巨型平面印刷感文字 */
-  .text-giant {
-    @apply text-[12vw] font-serif italic font-black leading-none tracking-tighter text-stone-900/5;
-    font-family: 'Playfair Display', "Songti SC", serif;
-  }
-
-  .font-serif-display {
-    font-family: 'Playfair Display', "Songti SC", serif;
-  }
-
-  /* 爱马仕橙按钮 */
-  .btn-primary {
-    @apply bg-orange-500 hover:bg-orange-600 text-white shadow-[0_8px_20px_rgba(249,115,22,0.3)] transition-all active:scale-[0.98];
+    @apply bg-white/50 border border-stone-100 focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/5 transition-all outline-none text-stone-800;
   }
 }
 
-/* 无限滚动动画 */
+/* 无缝滚动动画 */
+@keyframes marquee {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  display: inline-block;
+  white-space: nowrap;
+  animation: marquee 50s linear infinite;
+}
+
+/* 背景瀑布流动画 */
 @keyframes scrollUp {
   0% { transform: translateY(0); }
   100% { transform: translateY(-50%); }
@@ -51,31 +52,19 @@
 }
 
 .animate-marquee-up {
-  animation: scrollUp 80s linear infinite;
+  animation: scrollUp 100s linear infinite;
 }
 
 .animate-marquee-down {
-  animation: scrollDown 90s linear infinite;
+  animation: scrollDown 110s linear infinite;
 }
 
-/* 浅色胶片噪点图层 */
-.noise-layer {
-  position: fixed;
-  inset: 0;
-  z-index: 60;
-  pointer-events: none;
-  opacity: 0.05;
-  mix-blend-mode: multiply;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 250 250' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+/* 渐现效果 */
+.fade-in-up {
+  animation: fadeInUp 1s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
 }
 
-/* 橙色引擎光斑 */
-.engine-glow {
-  position: absolute;
-  width: 800px;
-  height: 400px;
-  background: radial-gradient(circle, rgba(249, 115, 22, 0.05) 0%, rgba(249, 115, 22, 0) 70%);
-  filter: blur(100px);
-  pointer-events: none;
-  z-index: 5;
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
 }
