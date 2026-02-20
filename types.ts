@@ -11,11 +11,13 @@ export enum ScenarioType {
 }
 
 export type GenerationMode = 'precision' | 'creative';
+export type FontStyle = 'modern' | 'elegant' | 'calligraphy' | 'playful';
 
 export interface TextConfig {
   title: string;
   detail: string;
   isEnabled?: boolean;
+  fontStyle?: FontStyle; // 新增：排版风格
 }
 
 export interface MarketAnalysis {
