@@ -1,6 +1,11 @@
+
+import { GoogleGenAI, Type } from "@google/genai";
 import { MarketAnalysis, ScenarioType, TextConfig, GenerationMode } from "../types";
 
-const BFF_ENDPOINT = '/api/gemini';
+/**
+ * Initialize the Google GenAI client using the provided environment variable.
+ */
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
 /**
  * 工业级动态提示词工程 (DPE) 引擎 - 物理参数接力版
@@ -69,49 +74,50 @@ function buildEnhancedPrompt(
   `.trim();
 }
 
-async function sendRequest(model: string, payload: any) {
-  const response = await fetch(BFF_ENDPOINT, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model, payload })
-  });
-  if (!response.ok) throw new Error("AI Gateway Error");
-  return await response.json();
-}
-
+/**
+ * 分析产品并提取物理参数 (使用 gemini-3-flash-preview)
+ */
 export async function analyzeProduct(base64Images: string[]): Promise<MarketAnalysis> {
-  const payload = {
-    contents: [{
-      parts: [
-        ...base64Images.map(data => ({ inlineData: { data, mimeType: 'image/png' } })),
-        { text: `
-          You are a Photogrammetry Expert. Analyze the product and the original photograph.
-          Output JSON ONLY with this schema:
-          {
-            "productType": "string",
-            "targetAudience": "string",
-            "sellingPoints": ["string"],
-            "suggestedPrompt": "string",
-            "isApparel": boolean,
-            "perspective": "string",
-            "lightingDirection": "string",
-            "physicalSpecs": {
-              "cameraPerspective": "precise camera angle and height",
-              "lightingDirection": "primary light source orientation (e.g. top-left at 45deg)",
-              "colorTemperature": "description of the color tone and kelvin"
-            }
-          }
-        ` }
-      ]
-    }],
-    generationConfig: { responseMimeType: "application/json" }
-  };
-
-  const result = await sendRequest('gemini-3-flash-preview', payload);
-  const text = result.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-  
   try {
-    const data = JSON.parse(text);
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: [{
+        parts: [
+          ...base64Images.map(data => ({ inlineData: { data, mimeType: 'image/png' } })),
+          { text: `
+            You are a Photogrammetry Expert. Analyze the product and the original photograph.
+            Output JSON with product analysis and physical specifications.
+          ` }
+        ]
+      }],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            productType: { type: Type.STRING },
+            targetAudience: { type: Type.STRING },
+            sellingPoints: { type: Type.ARRAY, items: { type: Type.STRING } },
+            suggestedPrompt: { type: Type.STRING },
+            isApparel: { type: Type.BOOLEAN },
+            perspective: { type: Type.STRING },
+            lightingDirection: { type: Type.STRING },
+            physicalSpecs: {
+              type: Type.OBJECT,
+              properties: {
+                cameraPerspective: { type: Type.STRING },
+                lightingDirection: { type: Type.STRING },
+                colorTemperature: { type: Type.STRING }
+              },
+              required: ["cameraPerspective", "lightingDirection", "colorTemperature"]
+            }
+          },
+          required: ["productType", "targetAudience", "sellingPoints", "suggestedPrompt", "isApparel", "perspective", "lightingDirection", "physicalSpecs"]
+        }
+      }
+    });
+
+    const data = JSON.parse(response.text || "{}");
     return {
       ...data,
       perspective: data.perspective || "Eye-level",
@@ -123,10 +129,14 @@ export async function analyzeProduct(base64Images: string[]): Promise<MarketAnal
       }
     };
   } catch (e) {
+    console.error("Analysis error:", e);
     throw new Error("产品参数解析失败，请确保上传清晰的商品图。");
   }
 }
 
+/**
+ * 根据场景和分析生成背景图像 (使用 gemini-2.5-flash-image)
+ */
 export async function generateScenarioImage(
   base64Images: string[],
   scenario: ScenarioType,
@@ -137,29 +147,37 @@ export async function generateScenarioImage(
 ): Promise<string> {
   
   const finalPrompt = buildEnhancedPrompt(scenario, analysis, userIntent, textConfig, mode);
-  const ratioMap: any = { 
+  const ratioMap: Record<string, "1:1" | "9:16" | "16:9" | "3:4" | "4:3"> = { 
     [ScenarioType.MOMENTS_POSTER]: "9:16", 
     [ScenarioType.LIVE_OVERLAY]: "16:9", 
-    [ScenarioType.LIVE_GREEN_SCREEN]: "16:9" 
+    [ScenarioType.LIVE_GREEN_SCREEN]: "16:9",
+    [ScenarioType.MODEL_REPLACEMENT]: "3:4",
+    [ScenarioType.BUYER_SHOW]: "3:4"
   };
 
-  const payload = {
+  const response = await ai.models.generateContent({
+    model: 'gemini-2.5-flash-image',
     contents: [{ 
       parts: [
         ...base64Images.map(data => ({ inlineData: { data, mimeType: 'image/png' } })), 
         { text: finalPrompt }
       ] 
     }],
-    generationConfig: { 
+    config: { 
       imageConfig: { 
         aspectRatio: ratioMap[scenario] || "1:1" 
       } 
     }
-  };
+  });
 
-  const result = await sendRequest('gemini-2.5-flash-image', payload);
-  const part = result.candidates?.[0]?.content?.parts.find((p: any) => p.inlineData);
-  
-  if (part) return `data:image/png;base64,${part.inlineData.data}`;
+  // Find the image part in candidates
+  for (const candidate of response.candidates) {
+    for (const part of candidate.content.parts) {
+      if (part.inlineData) {
+        return `data:image/png;base64,${part.inlineData.data}`;
+      }
+    }
+  }
+
   throw new Error("视觉渲染引擎执行失败。");
 }
