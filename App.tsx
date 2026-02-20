@@ -42,7 +42,7 @@ const VALUES_TEXT = "亿万次神经元计算，只为这一帧的惊艳。 ✦ 
 const App: React.FC = () => {
   const [step, setStep] = useState<'upload' | 'result'>('upload');
   const [sourceImages, setSourceImages] = useState<string[]>([]);
-  const [userIntent, setUserIntent] = useState("");
+  const [userPrompt, setUserPrompt] = useState("");
   const [showLab, setShowLab] = useState(false);
   
   // 神经元参数配置
@@ -86,14 +86,13 @@ const App: React.FC = () => {
     setError(null);
     try {
       const currentAnalysis = analysis || await analyzeProduct([sourceImages[0].split(',')[1]]);
-      // 这里的 userIntent 将包含对话框中输入的细节调整指令
       const aiResult = await generateScenarioImage(
         sourceImages.map(img => img.split(',')[1]), 
-        selectedScenario, currentAnalysis, userIntent, textConfig, mode
+        selectedScenario, currentAnalysis, userPrompt, textConfig, mode
       );
       const finalResult = await processFinalImage(aiResult, sourceImages[0], textConfig, currentAnalysis, mode);
       setResultImage(finalResult);
-      setShowLab(false); // 生成后关闭实验室面板
+      setShowLab(false); 
     } catch (err: any) {
       setError(err.message || "神经元集群同步异常");
       setStep('upload');
@@ -148,13 +147,14 @@ const App: React.FC = () => {
               <h3 className="text-7xl md:text-[100px] font-serif italic text-stone-900 tracking-tighter leading-none">
                 视觉即资产<span className="text-[#002FA7]">.</span>
               </h3>
-              <p className="font-sans text-[13px] text-stone-500 tracking-[0.6em] font-black uppercase inline-block border-y border-stone-100 py-5 max-w-3xl leading-relaxed">
+              <p className="font-sans text-[13px] text-stone-500 tracking-[0.8em] font-black uppercase inline-block border-y border-stone-100 py-5 max-w-3xl leading-relaxed">
                 搭载 Gemini 顶配神经元集群：亿万次计算，只为这一帧的惊艳。
               </p>
             </div>
 
             <div className="grid lg:grid-cols-12 gap-12">
               <div className="lg:col-span-7 glass-panel p-12 space-y-12 rounded-[60px]">
+                {/* 01 核心锚点注入 */}
                 <section>
                   <label className="text-[11px] font-black text-[#002FA7] tracking-[0.3em] uppercase mb-8 flex items-center gap-4">
                     <span className="w-2.5 h-2.5 bg-[#002FA7] rounded-full shadow-[0_0_15px_rgba(0,47,167,0.4)] animate-pulse" />
@@ -177,10 +177,25 @@ const App: React.FC = () => {
                   </div>
                 </section>
 
+                {/* 02 视觉语境构筑 (新增模块) */}
                 <section>
                   <label className="text-[11px] font-black text-[#002FA7] tracking-[0.3em] uppercase mb-8 flex items-center gap-4">
                     <span className="w-2.5 h-2.5 bg-[#002FA7] rounded-full shadow-[0_0_15px_rgba(0,47,167,0.4)] animate-pulse" />
-                    [ 02 ] 品牌文字预设
+                    [ 02 ] 视觉语境构筑
+                  </label>
+                  <textarea 
+                    value={userPrompt}
+                    onChange={(e) => setUserPrompt(e.target.value)}
+                    className="w-full min-h-[140px] resize-none rounded-[28px] bg-white/40 backdrop-blur-md border border-stone-200/60 px-6 py-5 text-sm text-stone-800 placeholder:text-stone-300 focus:bg-white/80 focus:border-[#002FA7]/50 focus:ring-8 focus:ring-[#002FA7]/5 transition-all duration-500 shadow-inner outline-none font-sans leading-relaxed"
+                    placeholder="// 导演指令：请描述您期望的画面细节与氛围...&#10;例如：清晨柔和的阳光透过百叶窗，商品放置在带有水滴的黑大理石台面上，背景具有电影级的景深虚化与冷暖对比。"
+                  />
+                </section>
+
+                {/* 03 品牌文字预设 */}
+                <section>
+                  <label className="text-[11px] font-black text-[#002FA7] tracking-[0.3em] uppercase mb-8 flex items-center gap-4">
+                    <span className="w-2.5 h-2.5 bg-[#002FA7] rounded-full shadow-[0_0_15px_rgba(0,47,167,0.4)] animate-pulse" />
+                    [ 03 ] 品牌文字预设
                   </label>
                   <div className="space-y-6">
                     <div className="relative group">
@@ -196,7 +211,7 @@ const App: React.FC = () => {
                         className="absolute right-4 top-1/2 -translate-y-1/2 p-2.5 bg-stone-100 hover:bg-[#002FA7] hover:text-white rounded-xl transition-all shadow-sm flex items-center gap-2 group"
                       >
                         <Zap size={14} className="group-hover:fill-current" />
-                        <span className="text-[10px] font-black uppercase">神经元实验室</span>
+                        <span className="text-[10px] font-black uppercase">排版实验室</span>
                       </button>
                     </div>
                     <input 
@@ -215,7 +230,7 @@ const App: React.FC = () => {
                   <section>
                     <label className="text-[11px] font-black text-[#002FA7] tracking-[0.3em] uppercase mb-8 flex items-center gap-4">
                       <span className="w-2.5 h-2.5 bg-[#002FA7] rounded-full shadow-[0_0_15px_rgba(0,47,167,0.4)] animate-pulse" />
-                      [ 03 ] 环境叙事
+                      [ 04 ] 环境叙事
                     </label>
                     <div className="grid grid-cols-2 gap-4">
                       {SCENARIO_CONFIGS.slice(0, 4).map(s => (
@@ -231,7 +246,7 @@ const App: React.FC = () => {
                   <section>
                     <label className="text-[11px] font-black text-[#002FA7] tracking-[0.3em] uppercase mb-8 flex items-center gap-4">
                       <span className="w-2.5 h-2.5 bg-[#002FA7] rounded-full shadow-[0_0_15px_rgba(0,47,167,0.4)] animate-pulse" />
-                      [ 04 ] 渲染约束
+                      [ 05 ] 渲染约束
                     </label>
                     <div className="flex gap-2 p-1.5 bg-stone-50 rounded-[20px] border border-stone-100/50">
                       <button onClick={() => setMode('precision')} className={`flex-1 py-4 text-[10px] font-black rounded-2xl transition-all ${mode === 'precision' ? 'bg-white text-[#002FA7] shadow-sm' : 'text-stone-300'}`}>物理保真</button>
@@ -292,38 +307,31 @@ const App: React.FC = () => {
         )}
       </main>
 
-      {/* 神经元微调实验室 (Neural Tuning Lab) 对话框 */}
+      {/* 排版实验室对话框 */}
       {showLab && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 sm:p-12 overflow-hidden">
           <div className="absolute inset-0 bg-stone-900/70 backdrop-blur-xl" onClick={() => setShowLab(false)} />
           <div className="relative w-full max-w-5xl glass-panel p-10 rounded-[48px] shadow-2xl flex flex-col lg:flex-row gap-10 max-h-[90vh] overflow-y-auto reveal-up bg-white/90">
             <button onClick={() => setShowLab(false)} className="absolute top-8 right-8 p-3 bg-stone-100 rounded-full hover:bg-orange-500 hover:text-white transition-all z-10"><X size={20} /></button>
             
-            {/* 左侧：细节调整对话框 (Instruction Dialogue Box) */}
             <div className="flex-1 space-y-10">
               <div className="flex items-center gap-4 text-[#002FA7]">
-                <MessageSquare size={24} />
-                <h3 className="text-2xl font-serif italic font-black">视觉指令中枢</h3>
+                <TypeIcon size={24} />
+                <h3 className="text-2xl font-serif italic font-black">矢量排版实验室</h3>
               </div>
-              
-              <section className="space-y-6">
-                <label className="text-[10px] font-black text-stone-400 tracking-widest uppercase block">细节调整对话框 (Neural Instructions)</label>
-                <div className="relative">
-                  <textarea 
-                    value={userIntent}
-                    onChange={(e) => setUserIntent(e.target.value)}
-                    placeholder="请输入对渲染效果的微调指令。例如：'让光线更具戏剧性'、'增加大理石反光'、'背景中加入一束晨光'..."
-                    className="w-full h-48 bg-stone-50 border border-stone-100 rounded-[28px] p-8 font-sans text-sm text-stone-700 resize-none outline-none focus:border-[#002FA7] transition-all placeholder:text-stone-300"
-                  />
-                  <div className="absolute bottom-6 right-6 flex items-center gap-2 px-3 py-1.5 bg-[#002FA7]/10 rounded-full">
-                    <Zap size={10} className="text-[#002FA7]" />
-                    <span className="text-[9px] font-black text-[#002FA7] uppercase tracking-tighter">神经元直接对话</span>
-                  </div>
-                </div>
-                <div className="p-6 bg-orange-50/50 border border-orange-100 rounded-[24px]">
-                  <p className="text-[11px] text-orange-600/80 leading-relaxed font-medium">
-                    提示：细节调整指令将直接覆盖或增强现有的环境叙事逻辑。请输入具体而富有空间感的描述，以获得最佳渲染效果。
-                  </p>
+
+              <section>
+                <label className="text-[10px] font-black text-stone-400 tracking-widest uppercase mb-4 block">字体矩阵库 (Typography Matrix)</label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 gap-3">
+                  {FONT_OPTIONS.map(font => (
+                    <button 
+                      key={font.id} 
+                      onClick={() => setTextConfig({...textConfig, fontStyle: font.id})}
+                      className={`py-4 px-3 border rounded-2xl text-[11px] font-black transition-all ${textConfig.fontStyle === font.id ? 'bg-[#002FA7] text-white border-[#002FA7] shadow-lg' : 'bg-white hover:border-stone-300 border-stone-100 text-stone-500'}`}
+                    >
+                      {font.label}
+                    </button>
+                  ))}
                 </div>
               </section>
 
@@ -352,27 +360,11 @@ const App: React.FC = () => {
               </section>
             </div>
 
-            {/* 右侧：排版矩阵与物理微调 */}
             <div className="flex-1 space-y-10 border-t lg:border-t-0 lg:border-l border-stone-100 pt-10 lg:pt-0 lg:pl-10">
               <div className="flex items-center gap-4 text-orange-500">
                 <Sliders size={24} />
-                <h3 className="text-2xl font-serif italic font-black">排版与物理微调</h3>
+                <h3 className="text-2xl font-serif italic font-black">空间维度微调</h3>
               </div>
-
-              <section>
-                <label className="text-[10px] font-black text-stone-400 tracking-widest uppercase mb-4 block">字体矩阵库 (Typography Matrix)</label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 gap-3">
-                  {FONT_OPTIONS.map(font => (
-                    <button 
-                      key={font.id} 
-                      onClick={() => setTextConfig({...textConfig, fontStyle: font.id})}
-                      className={`py-4 px-3 border rounded-2xl text-[11px] font-black transition-all ${textConfig.fontStyle === font.id ? 'bg-[#002FA7] text-white border-[#002FA7] shadow-lg' : 'bg-white hover:border-stone-300 border-stone-100 text-stone-500'}`}
-                    >
-                      {font.label}
-                    </button>
-                  ))}
-                </div>
-              </section>
 
               <section className="space-y-8">
                 <div>
@@ -400,22 +392,12 @@ const App: React.FC = () => {
                 </div>
               </section>
 
-              <div className="flex gap-4">
-                <button 
-                  onClick={() => setShowLab(false)} 
-                  className="flex-1 py-6 bg-stone-100 text-stone-600 rounded-[28px] font-black tracking-widest uppercase text-[11px] hover:bg-stone-200 transition-all active:scale-95"
-                >
-                  暂存参数
-                </button>
-                <button 
-                  onClick={handleGenerate} 
-                  disabled={isProcessing}
-                  className="flex-[2] py-6 bg-stone-900 text-white rounded-[28px] font-black tracking-widest uppercase text-[11px] shadow-2xl hover:bg-[#002FA7] transition-all flex items-center justify-center gap-3 active:scale-95 disabled:opacity-20"
-                >
-                  <Sparkles size={14} />
-                  应用并立即渲染
-                </button>
-              </div>
+              <button 
+                onClick={() => setShowLab(false)} 
+                className="w-full py-6 bg-stone-900 text-white rounded-[28px] font-black tracking-widest uppercase text-[11px] shadow-2xl hover:bg-[#002FA7] transition-all flex items-center justify-center gap-3 active:scale-95"
+              >
+                应用神经元参数
+              </button>
             </div>
           </div>
         </div>
