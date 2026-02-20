@@ -11,13 +11,21 @@ export enum ScenarioType {
 }
 
 export type GenerationMode = 'precision' | 'creative';
-export type FontStyle = 'modern' | 'elegant' | 'calligraphy' | 'playful';
+export type FontStyle = 
+  | 'modern' | 'elegant' | 'calligraphy' | 'playful' 
+  | 'brush' | 'serif' | 'display' | 'handwriting'
+  | 'tech' | 'classic' | 'street' | 'cursive';
 
 export interface TextConfig {
   title: string;
   detail: string;
   isEnabled?: boolean;
-  fontStyle?: FontStyle;
+  fontStyle: FontStyle;
+  mainColor: string;
+  subColor: string;
+  fontSize: number;
+  shadowIntensity: number;
+  positionY: number; // 0-100 percentage
 }
 
 export interface MarketAnalysis {
@@ -26,13 +34,12 @@ export interface MarketAnalysis {
   sellingPoints: string[];
   suggestedPrompt: string;
   isApparel: boolean;
-  perspective: string; // 基础透视描述
-  lightingDirection: string; // 基础光源描述
-  // 新增：物理逆向规格参数
+  perspective: string;
+  lightingDirection: string;
   physicalSpecs: {
-    cameraPerspective: string;  // 例如: "eye-level straight on", "45-degree top-down"
-    lightingDirection: string;  // 例如: "soft light from top-left", "harsh front lighting"
-    colorTemperature: string;   // 例如: "warm 3000k yellow", "cool 6500k natural daylight"
+    cameraPerspective: string;
+    lightingDirection: string;
+    colorTemperature: string;
   };
 }
 
