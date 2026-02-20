@@ -177,7 +177,7 @@ const App: React.FC = () => {
                   </div>
                 </section>
 
-                {/* 02 视觉语境构筑 (新增模块) */}
+                {/* 02 视觉语境构筑 (Prompt Component) */}
                 <section>
                   <label className="text-[11px] font-black text-[#002FA7] tracking-[0.3em] uppercase mb-8 flex items-center gap-4">
                     <span className="w-2.5 h-2.5 bg-[#002FA7] rounded-full shadow-[0_0_15px_rgba(0,47,167,0.4)] animate-pulse" />
@@ -186,12 +186,12 @@ const App: React.FC = () => {
                   <textarea 
                     value={userPrompt}
                     onChange={(e) => setUserPrompt(e.target.value)}
-                    className="w-full min-h-[140px] resize-none rounded-[28px] bg-white/40 backdrop-blur-md border border-stone-200/60 px-6 py-5 text-sm text-stone-800 placeholder:text-stone-300 focus:bg-white/80 focus:border-[#002FA7]/50 focus:ring-8 focus:ring-[#002FA7]/5 transition-all duration-500 shadow-inner outline-none font-sans leading-relaxed"
-                    placeholder="// 导演指令：请描述您期望的画面细节与氛围...&#10;例如：清晨柔和的阳光透过百叶窗，商品放置在带有水滴的黑大理石台面上，背景具有电影级的景深虚化与冷暖对比。"
+                    className="w-full min-h-[120px] resize-none rounded-sm bg-white/40 backdrop-blur-md border border-stone-200/60 px-4 py-3 text-sm text-stone-800 placeholder:text-stone-400 focus:bg-white/80 focus:border-[#002FA7]/50 focus:ring-4 focus:ring-[#002FA7]/10 transition-all duration-300 shadow-inner outline-none font-sans leading-relaxed"
+                    placeholder={"// 导演指令：请描述您期望的画面细节与氛围...\n例如：清晨柔和的阳光透过百叶窗，商品放置在带有水滴的黑大理石台面上，背景具有电影级的景深虚化与冷暖对比。"}
                   />
                 </section>
 
-                {/* 03 品牌文字预设 */}
+                {/* 03 品牌文字预设 (序号已顺延) */}
                 <section>
                   <label className="text-[11px] font-black text-[#002FA7] tracking-[0.3em] uppercase mb-8 flex items-center gap-4">
                     <span className="w-2.5 h-2.5 bg-[#002FA7] rounded-full shadow-[0_0_15px_rgba(0,47,167,0.4)] animate-pulse" />
