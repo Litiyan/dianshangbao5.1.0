@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Download, RefreshCw, X, MessageSquareText,
-  Sparkles, Camera, LayoutGrid, Plus, Trash2, CheckCircle2, ShieldAlert
+  Sparkles, Camera, LayoutGrid, Plus, Trash2, CheckCircle2, ShieldAlert,
+  Zap
 } from 'lucide-react';
 import { ScenarioType, MarketAnalysis, TextConfig } from './types';
 import { SCENARIO_CONFIGS } from './constants';
@@ -9,18 +10,18 @@ import { analyzeProduct, generateScenarioImage } from './services/geminiService'
 import { processFinalImage } from './utils/imageComposite';
 
 const LOADING_STEPS = [
-  "分析原图透视与光源分布...",
-  "构建同步光影的 AI 置景舞台...",
-  "WASM 商品高精抠图处理...",
-  "执行矩阵变换物理投影合成...",
-  "矢量中文美学排版注入..."
+  "解析文案语义并注入 DPE 引擎...",
+  "根据语义氛围匹配物理光源...",
+  "构建同步视角的高精空背景...",
+  "WASM 物理级抠图与矩阵投影...",
+  "输出最终商业视觉方案..."
 ];
 
 const App: React.FC = () => {
   const [step, setStep] = useState<'upload' | 'result'>('upload');
   const [sourceImages, setSourceImages] = useState<string[]>([]);
   const [userIntent, setUserIntent] = useState("");
-  const [textConfig, setTextConfig] = useState<TextConfig>({ title: "", detail: "" });
+  const [textConfig, setTextConfig] = useState<TextConfig>({ title: "", detail: "", isEnabled: true });
   const [selectedScenario, setSelectedScenario] = useState<ScenarioType>(ScenarioType.PLATFORM_MAIN_DETAIL);
   
   const [isProcessing, setIsProcessing] = useState(false);
@@ -34,7 +35,7 @@ const App: React.FC = () => {
     if (isProcessing) {
       interval = setInterval(() => {
         setLoadingTextIndex((prev) => (prev + 1) % LOADING_STEPS.length);
-      }, 2000);
+      }, 2500);
     }
     return () => clearInterval(interval);
   }, [isProcessing]);
@@ -76,7 +77,7 @@ const App: React.FC = () => {
       );
       setResultImage(finalResult);
     } catch (err: any) {
-      setError({ title: "合成失败", msg: err.message });
+      setError({ title: "视觉实验室报错", msg: err.message });
       setStep('upload');
     } finally {
       setIsProcessing(false);
@@ -92,8 +93,9 @@ const App: React.FC = () => {
           </div>
           <span className="text-lg font-black italic tracking-tighter">电商宝 <span className="text-orange-500 underline decoration-2 underline-offset-4">Pro</span></span>
         </div>
-        <div className="px-3 py-1 bg-emerald-50 rounded-full border border-emerald-100 flex items-center gap-1.5">
-           <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Harmonization Engine v2</span>
+        <div className="px-3 py-1 bg-orange-50 rounded-full border border-orange-100 flex items-center gap-1.5">
+           <Zap size={12} className="text-orange-500 animate-pulse" />
+           <span className="text-[10px] font-bold text-orange-600 uppercase tracking-widest">DPE Synergy Engine v3.1</span>
         </div>
       </header>
 
@@ -124,17 +126,23 @@ const App: React.FC = () => {
                 <textarea value={userIntent} onChange={(e) => setUserIntent(e.target.value)} placeholder="描述你想要的环境..." className="w-full h-24 bg-slate-50 border-none rounded-xl p-4 text-[13px] focus:ring-2 focus:ring-orange-500/10 outline-none resize-none" />
               </div>
               <div className="bg-white rounded-[32px] p-6 shadow-sm space-y-3">
-                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><LayoutGrid size={14} /> 3. 画面文案</h3>
-                <input type="text" value={textConfig.title} placeholder="主标题" onChange={(e) => setTextConfig({...textConfig, title: e.target.value})} className="w-full h-11 bg-slate-50 border-none rounded-xl px-4 text-[13px] outline-none" />
-                <input type="text" value={textConfig.detail} placeholder="卖点" onChange={(e) => setTextConfig({...textConfig, detail: e.target.value})} className="w-full h-11 bg-slate-50 border-none rounded-xl px-4 text-[13px] outline-none" />
+                <div className="flex items-center justify-between">
+                  <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><LayoutGrid size={14} /> 3. 画面文案</h3>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <span className="text-[10px] font-bold text-slate-400">DPE 协同</span>
+                    <input type="checkbox" checked={textConfig.isEnabled} onChange={(e) => setTextConfig({...textConfig, isEnabled: e.target.checked})} className="w-4 h-4 accent-orange-500" />
+                  </label>
+                </div>
+                <input type="text" value={textConfig.title} placeholder="主标题 (DPE 引擎会根据此语义调整光影)" onChange={(e) => setTextConfig({...textConfig, title: e.target.value})} className="w-full h-11 bg-slate-50 border-none rounded-xl px-4 text-[13px] outline-none" />
+                <input type="text" value={textConfig.detail} placeholder="细节卖点" onChange={(e) => setTextConfig({...textConfig, detail: e.target.value})} className="w-full h-11 bg-slate-50 border-none rounded-xl px-4 text-[13px] outline-none" />
               </div>
             </div>
 
             <section className="bg-white rounded-[32px] p-6 shadow-sm">
-              <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">4. 交付平台</h2>
+              <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">4. 交付平台场景</h2>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {SCENARIO_CONFIGS.map(cfg => (
-                  <button key={cfg.id} onClick={() => setSelectedScenario(cfg.id)} className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${selectedScenario === cfg.id ? 'bg-slate-900 border-slate-900 text-white' : 'bg-slate-50 border-slate-50 text-slate-500'}`}>
+                  <button key={cfg.id} onClick={() => setSelectedScenario(cfg.id)} className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center text-center gap-2 ${selectedScenario === cfg.id ? 'bg-slate-900 border-slate-900 text-white shadow-xl scale-[1.02]' : 'bg-slate-50 border-slate-50 text-slate-500 hover:border-slate-200'}`}>
                     <span className="text-xl">{cfg.icon}</span>
                     <span className="text-[11px] font-bold">{cfg.name}</span>
                   </button>
@@ -144,17 +152,20 @@ const App: React.FC = () => {
 
             <button onClick={executeGeneration} disabled={isProcessing || sourceImages.length === 0} className="w-full h-16 bg-orange-500 hover:bg-orange-600 text-white rounded-[24px] flex items-center justify-center gap-3 font-bold tracking-widest shadow-xl active:scale-95 transition-all">
               {isProcessing ? <RefreshCw className="animate-spin" /> : <Sparkles />}
-              执行物理光影重构
+              启动视觉实验室重构
             </button>
           </div>
         ) : (
           <div className="min-h-[500px] flex flex-col items-center animate-in zoom-in-95">
             {isProcessing ? (
               <div className="flex-1 flex flex-col items-center justify-center text-center space-y-6">
-                <div className="w-16 h-16 border-4 border-orange-100 border-t-orange-500 rounded-full animate-spin"></div>
+                <div className="relative">
+                   <div className="w-20 h-20 border-[6px] border-orange-100 border-t-orange-500 rounded-full animate-spin"></div>
+                   <Zap className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-orange-500 animate-pulse" size={24} />
+                </div>
                 <div className="space-y-1">
                    <p className="text-base font-black text-slate-800">{LOADING_STEPS[loadingTextIndex]}</p>
-                   <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Harmonization Logic: Perspective & Matrix Shadow</p>
+                   <p className="text-[10px] text-orange-400 font-bold uppercase tracking-widest">DPE Logic: Semantic-Visual Harmonization</p>
                 </div>
               </div>
             ) : (
@@ -162,12 +173,12 @@ const App: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <h2 className="text-xl font-black flex items-center gap-2"><CheckCircle2 className="text-emerald-500" /> 重构完成</h2>
                   <div className="flex gap-2">
-                    <button onClick={() => setStep('upload')} className="px-4 py-2 bg-slate-100 rounded-xl font-bold text-[11px]">返回修改</button>
-                    <a href={resultImage!} download="commerce_pro.png" className="px-5 py-2 bg-orange-500 text-white rounded-xl font-bold text-[11px] flex items-center gap-2">导出结果</a>
+                    <button onClick={() => setStep('upload')} className="px-4 py-2 bg-slate-100 rounded-xl font-bold text-[11px] hover:bg-slate-200 transition-colors">重新生成</button>
+                    <a href={resultImage!} download="ec_pro_result.png" className="px-5 py-2 bg-orange-500 text-white rounded-xl font-bold text-[11px] flex items-center gap-2 hover:bg-orange-600 transition-colors">保存高清图</a>
                   </div>
                 </div>
-                <div className="bg-white p-5 rounded-[48px] shadow-2xl border border-slate-50 overflow-hidden">
-                  <img src={resultImage!} className="w-full h-auto rounded-[32px]" alt="Result" />
+                <div className="bg-white p-5 rounded-[48px] shadow-2xl border border-slate-50">
+                  <img src={resultImage!} className="w-full h-auto rounded-[32px] shadow-inner" alt="Final Result" />
                 </div>
               </div>
             )}

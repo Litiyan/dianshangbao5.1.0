@@ -13,6 +13,7 @@ export enum ScenarioType {
 export interface TextConfig {
   title: string;
   detail: string;
+  isEnabled?: boolean; // 新增：是否启用图文协同引擎
 }
 
 export interface MarketAnalysis {
@@ -21,8 +22,8 @@ export interface MarketAnalysis {
   sellingPoints: string[];
   suggestedPrompt: string;
   isApparel: boolean;
-  perspective: string;        // 拍摄视角，如 "Eye-level straight on", "45-degree top-down"
-  lightingDirection: string;  // 光源方向，如 "Top-left", "Front-on", "Backlit"
+  perspective: string;        // 拍摄视角
+  lightingDirection: string;  // 光源方向
 }
 
 export interface GeneratedImage {
