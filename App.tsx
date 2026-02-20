@@ -2,18 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { 
   Download, RefreshCw, X, MessageSquareText,
   Sparkles, Camera, LayoutGrid, Plus, Trash2, CheckCircle2, ShieldAlert,
-  Zap
+  Zap, ShieldCheck, Palette
 } from 'lucide-react';
-import { ScenarioType, MarketAnalysis, TextConfig } from './types';
+import { ScenarioType, MarketAnalysis, TextConfig, GenerationMode } from './types';
 import { SCENARIO_CONFIGS } from './constants';
 import { analyzeProduct, generateScenarioImage } from './services/geminiService';
 import { processFinalImage } from './utils/imageComposite';
 
 const LOADING_STEPS = [
   "解析文案语义并注入 DPE 引擎...",
-  "根据语义氛围匹配物理光源...",
-  "构建同步视角的高精空背景...",
-  "WASM 物理级抠图与矩阵投影...",
+  "根据生成模式匹配视觉权重...",
+  "构建同步视角的高精 AI 渲染...",
+  "执行物理融合与光影重构...",
   "输出最终商业视觉方案..."
 ];
 
@@ -23,6 +23,7 @@ const App: React.FC = () => {
   const [userIntent, setUserIntent] = useState("");
   const [textConfig, setTextConfig] = useState<TextConfig>({ title: "", detail: "", isEnabled: true });
   const [selectedScenario, setSelectedScenario] = useState<ScenarioType>(ScenarioType.PLATFORM_MAIN_DETAIL);
+  const [mode, setMode] = useState<GenerationMode>('precision');
   
   const [isProcessing, setIsProcessing] = useState(false);
   const [loadingTextIndex, setLoadingTextIndex] = useState(0);
@@ -62,18 +63,20 @@ const App: React.FC = () => {
     setStep('result');
     try {
       const currentAnalysis = analysis || await analyzeProduct([sourceImages[0].split(',')[1]]);
-      const aiBackground = await generateScenarioImage(
+      const aiResult = await generateScenarioImage(
         sourceImages.map(img => img.split(',')[1]), 
         selectedScenario, 
         currentAnalysis, 
         userIntent, 
-        textConfig
+        textConfig,
+        mode
       );
       const finalResult = await processFinalImage(
-        aiBackground, 
+        aiResult, 
         sourceImages[0], 
         textConfig,
-        currentAnalysis
+        currentAnalysis,
+        mode
       );
       setResultImage(finalResult);
     } catch (err: any) {
@@ -95,13 +98,37 @@ const App: React.FC = () => {
         </div>
         <div className="px-3 py-1 bg-orange-50 rounded-full border border-orange-100 flex items-center gap-1.5">
            <Zap size={12} className="text-orange-500 animate-pulse" />
-           <span className="text-[10px] font-bold text-orange-600 uppercase tracking-widest">DPE Synergy Engine v3.1</span>
+           <span className="text-[10px] font-bold text-orange-600 uppercase tracking-widest">Dual-Mode Engine v4.0</span>
         </div>
       </header>
 
       <main className="max-w-5xl mx-auto w-full p-4 md:p-8 flex-1">
         {step === 'upload' ? (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            {/* 模式选择切换器 */}
+            <section className="bg-white rounded-[32px] p-2 border border-slate-100 shadow-sm flex gap-2">
+              <button 
+                onClick={() => setMode('precision')}
+                className={`flex-1 flex items-center justify-center gap-3 p-4 rounded-[26px] transition-all ${mode === 'precision' ? 'bg-slate-900 text-white shadow-xl' : 'hover:bg-slate-50 text-slate-500'}`}
+              >
+                <ShieldCheck size={20} className={mode === 'precision' ? 'text-orange-500' : ''} />
+                <div className="text-left">
+                  <p className="font-black text-sm">物理保真 (推荐主图)</p>
+                  <p className="text-[10px] opacity-60">100% 保留原商品细节，防止变形</p>
+                </div>
+              </button>
+              <button 
+                onClick={() => setMode('creative')}
+                className={`flex-1 flex items-center justify-center gap-3 p-4 rounded-[26px] transition-all ${mode === 'creative' ? 'bg-slate-900 text-white shadow-xl' : 'hover:bg-slate-50 text-slate-500'}`}
+              >
+                <Palette size={20} className={mode === 'creative' ? 'text-orange-500' : ''} />
+                <div className="text-left">
+                  <p className="font-black text-sm">艺术重塑 (推荐海报)</p>
+                  <p className="text-[10px] opacity-60">极致光影融合，允许 AI 进行艺术级微调</p>
+                </div>
+              </button>
+            </section>
+
             <section className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm">
               <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Camera size={14} className="text-orange-500" /> 1. 上传产品素材</h2>
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
@@ -133,7 +160,7 @@ const App: React.FC = () => {
                     <input type="checkbox" checked={textConfig.isEnabled} onChange={(e) => setTextConfig({...textConfig, isEnabled: e.target.checked})} className="w-4 h-4 accent-orange-500" />
                   </label>
                 </div>
-                <input type="text" value={textConfig.title} placeholder="主标题 (DPE 引擎会根据此语义调整光影)" onChange={(e) => setTextConfig({...textConfig, title: e.target.value})} className="w-full h-11 bg-slate-50 border-none rounded-xl px-4 text-[13px] outline-none" />
+                <input type="text" value={textConfig.title} placeholder="主标题 (驱动 DPE 情感引擎)" onChange={(e) => setTextConfig({...textConfig, title: e.target.value})} className="w-full h-11 bg-slate-50 border-none rounded-xl px-4 text-[13px] outline-none" />
                 <input type="text" value={textConfig.detail} placeholder="细节卖点" onChange={(e) => setTextConfig({...textConfig, detail: e.target.value})} className="w-full h-11 bg-slate-50 border-none rounded-xl px-4 text-[13px] outline-none" />
               </div>
             </div>
@@ -152,7 +179,7 @@ const App: React.FC = () => {
 
             <button onClick={executeGeneration} disabled={isProcessing || sourceImages.length === 0} className="w-full h-16 bg-orange-500 hover:bg-orange-600 text-white rounded-[24px] flex items-center justify-center gap-3 font-bold tracking-widest shadow-xl active:scale-95 transition-all">
               {isProcessing ? <RefreshCw className="animate-spin" /> : <Sparkles />}
-              启动视觉实验室重构
+              {mode === 'precision' ? '执行物理保真生成' : '启动艺术重塑渲染'}
             </button>
           </div>
         ) : (
@@ -165,20 +192,20 @@ const App: React.FC = () => {
                 </div>
                 <div className="space-y-1">
                    <p className="text-base font-black text-slate-800">{LOADING_STEPS[loadingTextIndex]}</p>
-                   <p className="text-[10px] text-orange-400 font-bold uppercase tracking-widest">DPE Logic: Semantic-Visual Harmonization</p>
+                   <p className="text-[10px] text-orange-400 font-bold uppercase tracking-widest">Engine Mode: {mode.toUpperCase()}</p>
                 </div>
               </div>
             ) : (
               <div className="w-full space-y-6">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-black flex items-center gap-2"><CheckCircle2 className="text-emerald-500" /> 重构完成</h2>
+                  <h2 className="text-xl font-black flex items-center gap-2"><CheckCircle2 className="text-emerald-500" /> {mode === 'precision' ? '保真生成完成' : '艺术渲染完成'}</h2>
                   <div className="flex gap-2">
-                    <button onClick={() => setStep('upload')} className="px-4 py-2 bg-slate-100 rounded-xl font-bold text-[11px] hover:bg-slate-200 transition-colors">重新生成</button>
-                    <a href={resultImage!} download="ec_pro_result.png" className="px-5 py-2 bg-orange-500 text-white rounded-xl font-bold text-[11px] flex items-center gap-2 hover:bg-orange-600 transition-colors">保存高清图</a>
+                    <button onClick={() => setStep('upload')} className="px-4 py-2 bg-slate-100 rounded-xl font-bold text-[11px] hover:bg-slate-200 transition-colors">重新调整</button>
+                    <a href={resultImage!} download={`ec_pro_${mode}.png`} className="px-5 py-2 bg-orange-500 text-white rounded-xl font-bold text-[11px] flex items-center gap-2 hover:bg-orange-600 transition-colors">导出高清图</a>
                   </div>
                 </div>
                 <div className="bg-white p-5 rounded-[48px] shadow-2xl border border-slate-50">
-                  <img src={resultImage!} className="w-full h-auto rounded-[32px] shadow-inner" alt="Final Result" />
+                   <img src={resultImage!} className="w-full h-auto rounded-[32px] shadow-inner" alt="Result" />
                 </div>
               </div>
             )}

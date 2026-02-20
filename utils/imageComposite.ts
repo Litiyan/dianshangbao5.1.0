@@ -1,27 +1,20 @@
 import { removeBackground } from "@imgly/background-removal";
-import { TextConfig, MarketAnalysis } from "../types";
+import { TextConfig, MarketAnalysis, GenerationMode } from "../types";
 
 /**
- * 物理级环境融合引擎
+ * 物理级环境融合与智能避让合成引擎
  */
 export async function processFinalImage(
-  aiBackgroundUrl: string,
+  aiResultUrl: string,
   originalImageBase64: string,
   textConfig: TextConfig,
-  analysis: MarketAnalysis
+  analysis: MarketAnalysis,
+  mode: GenerationMode
 ): Promise<string> {
   return new Promise(async (resolve, reject) => {
     try {
-      // 1. 提取商品前景
-      const blob = await fetch(originalImageBase64).then(res => res.blob());
-      const mattedBlob = await removeBackground(blob);
-      const mattedUrl = URL.createObjectURL(mattedBlob);
-
-      // 2. 加载资源
-      const [bgImg, fgImg] = await Promise.all([
-        loadImage(aiBackgroundUrl),
-        loadImage(mattedUrl)
-      ]);
+      // 1. 加载 AI 生成的结果（可能是空背景，也可能是包含产品的全景）
+      const bgImg = await loadImage(aiResultUrl);
 
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d', { willReadFrequently: true });
@@ -30,8 +23,24 @@ export async function processFinalImage(
       canvas.width = bgImg.width;
       canvas.height = bgImg.height;
 
-      // 第一层：底图
+      // 绘制底层
       ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
+
+      // --- 分支：艺术重塑模式 (Creative) 直接跳过产品合成，保留 AI 的融合效果 ---
+      if (mode === 'creative') {
+        if (textConfig.title || textConfig.detail) {
+          renderText(ctx, canvas.width, canvas.height, textConfig);
+        }
+        return resolve(canvas.toDataURL('image/png', 0.95));
+      }
+
+      // --- 分支：物理保真模式 (Precision) 执行高精合成链路 ---
+      
+      // 2. 提取商品前景 (WASM 离屏处理)
+      const blob = await fetch(originalImageBase64).then(res => res.blob());
+      const mattedBlob = await removeBackground(blob);
+      const mattedUrl = URL.createObjectURL(mattedBlob);
+      const fgImg = await loadImage(mattedUrl);
 
       // 3. 计算商品布局
       const paddingScale = 0.65;
@@ -48,11 +57,7 @@ export async function processFinalImage(
       const fx = (canvas.width - fw) / 2;
       const fy = (canvas.height - fh) * 0.65;
 
-      // ---------------------------------------------------------
-      // 第二层：高级投影算法 (Matrix-Based Cast Shadow)
-      // ---------------------------------------------------------
-      
-      // 创建离屏阴影遮罩
+      // 4. 绘制矩阵变换投影
       const shadowCanvas = document.createElement('canvas');
       shadowCanvas.width = fw;
       shadowCanvas.height = fh;
@@ -62,23 +67,19 @@ export async function processFinalImage(
       sctx.fillStyle = 'black';
       sctx.fillRect(0, 0, fw, fh);
 
-      // 绘制落影 (Cast Shadow)
       ctx.save();
-      // 基于光源方向计算偏斜矩阵
-      // 默认 Top-Left 光源，阴影向右下方拉长
       let skewX = 0.5; 
       let scaleY = 0.3;
       if (analysis.lightingDirection.toLowerCase().includes('right')) skewX = -0.5;
-      if (analysis.perspective.toLowerCase().includes('high') || analysis.perspective.toLowerCase().includes('top')) scaleY = 0.5;
+      if (analysis.perspective.toLowerCase().includes('high')) scaleY = 0.5;
 
       ctx.globalAlpha = 0.25;
       ctx.filter = 'blur(25px)';
-      // 矩阵变换：位移到商品底部，应用偏斜和缩放
       ctx.setTransform(1, 0, skewX, scaleY, fx + (fw * 0.1), fy + fh);
       ctx.drawImage(shadowCanvas, 0, -fh, fw, fh);
       ctx.restore();
 
-      // 绘制接触影 (Contact Occlusion) - 极浓、短促的根部阴影
+      // 5. 绘制接触影
       ctx.save();
       ctx.globalAlpha = 0.5;
       ctx.filter = 'blur(8px)';
@@ -88,23 +89,16 @@ export async function processFinalImage(
       ctx.fill();
       ctx.restore();
 
-      // ---------------------------------------------------------
-      // 第三层：商品本体与环境光包裹
-      // ---------------------------------------------------------
+      // 6. 绘制商品本体并注入环境光包裹
       ctx.save();
-      // 模拟微弱的环境光反射 (边缘融合)
       ctx.shadowColor = "transparent";
       ctx.drawImage(fgImg, fx, fy, fw, fh);
-      
-      // 环境光覆盖层 (Blend mode: Overlay)
       ctx.globalCompositeOperation = 'overlay';
       ctx.globalAlpha = 0.05;
       ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height, fx, fy, fw, fh);
       ctx.restore();
 
-      // ---------------------------------------------------------
-      // 第四层：文字排版
-      // ---------------------------------------------------------
+      // 7. 文字排版
       if (textConfig.title || textConfig.detail) {
         renderText(ctx, canvas.width, canvas.height, textConfig);
       }

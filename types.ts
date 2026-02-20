@@ -10,10 +10,12 @@ export enum ScenarioType {
   LIVE_GREEN_SCREEN = 'LIVE_GREEN_SCREEN'
 }
 
+export type GenerationMode = 'precision' | 'creative';
+
 export interface TextConfig {
   title: string;
   detail: string;
-  isEnabled?: boolean; // 新增：是否启用图文协同引擎
+  isEnabled?: boolean;
 }
 
 export interface MarketAnalysis {
@@ -22,8 +24,8 @@ export interface MarketAnalysis {
   sellingPoints: string[];
   suggestedPrompt: string;
   isApparel: boolean;
-  perspective: string;        // 拍摄视角
-  lightingDirection: string;  // 光源方向
+  perspective: string;
+  lightingDirection: string;
 }
 
 export interface GeneratedImage {
