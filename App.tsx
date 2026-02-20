@@ -100,7 +100,7 @@ const App: React.FC = () => {
       );
       setResultImage(finalResult);
     } catch (err: any) {
-      setError({ title: "排版引擎异常", msg: err.message });
+      setError({ title: "合成重构失败", msg: err.message || "排版引擎或网络环境异常，请重试。" });
       setStep('upload');
     } finally {
       setIsProcessing(false);
