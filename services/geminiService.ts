@@ -4,8 +4,9 @@ import { MarketAnalysis, ScenarioType, TextConfig, GenerationMode } from "../typ
 
 /**
  * Initialize the Google GenAI client using the provided environment variable.
+ * Always use named parameter for apiKey.
  */
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 /**
  * 工业级动态提示词工程 (DPE) 引擎 - 物理参数接力版
@@ -75,12 +76,12 @@ function buildEnhancedPrompt(
 }
 
 /**
- * 分析产品并提取物理参数 (使用 gemini-3-flash-preview)
+ * 分析产品并提取物理参数 (使用 gemini-3-pro-preview for complex reasoning)
  */
 export async function analyzeProduct(base64Images: string[]): Promise<MarketAnalysis> {
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-3-pro-preview',
       contents: [{
         parts: [
           ...base64Images.map(data => ({ inlineData: { data, mimeType: 'image/png' } })),
@@ -171,7 +172,7 @@ export async function generateScenarioImage(
   });
 
   // Find the image part in candidates
-  for (const candidate of response.candidates) {
+  for (const candidate of response.candidates || []) {
     for (const part of candidate.content.parts) {
       if (part.inlineData) {
         return `data:image/png;base64,${part.inlineData.data}`;
