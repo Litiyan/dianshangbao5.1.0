@@ -1,5 +1,5 @@
 
-import { verifyAlipayNotify } from "../../../utils/alipay";
+import { verifyAlipayNotify } from "../../../src/utils/alipay";
 
 export async function onRequestPost(context: { env: { ALIPAY_PUBLIC_KEY: string }; request: Request }) {
   const { env, request } = context;

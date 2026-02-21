@@ -1,5 +1,5 @@
 
-import { signAlipayRequest } from "../../../utils/alipay";
+import { signAlipayRequest } from "../../../src/utils/alipay";
 
 export async function onRequestGet(context: { env: { ALIPAY_APP_ID: string; ALIPAY_PRIVATE_KEY: string }; request: Request }) {
   try {
