@@ -1,43 +1,17 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>电商宝 Pro - AI 商业视觉重构专家</title>
-    <meta name="description" content="专为跨境、淘系商家打造的 AI 视觉实验室">
-    <style>
-        body, html, #root { 
-            margin: 0; padding: 0; min-height: 100vh; 
-            background-color: #FDFCFB; 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-        }
-        .initial-loader {
-            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            color: #F97316; font-size: 14px; font-weight: 600; text-align: center;
-        }
-    </style>
-<script type="importmap">
-{
-  "imports": {
-    "react": "https://esm.sh/react@^19.2.4",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
-    "react/": "https://esm.sh/react@^19.2.4/",
-    "lucide-react": "https://esm.sh/lucide-react@^0.575.0",
-    "vite": "https://esm.sh/vite@^7.3.1",
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.4",
-    "@imgly/background-removal": "https://esm.sh/@imgly/background-removal@^1.7.0",
-    "@google/genai": "https://esm.sh/@google/genai@^1.42.0"
-  }
-}
-</script>
-</head>
-<body class="antialiased">
-    <div id="root">
-        <div class="initial-loader">
-            <div style="font-size: 24px; margin-bottom: 8px;">🛍️</div>
-            正在初始化商业视觉引擎...
-        </div>
-    </div>
-    <script type="module" src="/index.tsx"></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>电商宝 - AI 视觉重构专家</title>
+    <meta name="description" content="电商宝 - 专为商家打造的 AI 电商作图神器。" />
+    
+    <script>
+      window.process = { env: { NODE_ENV: 'production' } };
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/index.tsx"></script>
+  </body>
 </html>
