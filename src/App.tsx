@@ -60,9 +60,9 @@ const App: React.FC = () => {
       reader.onloadend = () => resolve(reader.result as string);
       reader.readAsDataURL(file);
     })));
-    setSourceImages(prev => [...prev, ...results].slice(0, 5));
+    setSourceImages((prev: string[]) => [...prev, ...results].slice(0, 5));
     try {
-      const res = await analyzeProduct(results.map((r: string) => r.split(',')[1]));
+      const res = await analyzeProduct(results.map(r => (r as string).split(',')[1]));
       setAnalysis(res);
     } catch (err) { console.error(err); }
   };
@@ -72,7 +72,7 @@ const App: React.FC = () => {
     setIsProcessing(true); setStep('result');
     try {
       const currentAnalysis = analysis || await analyzeProduct([sourceImages[0].split(',')[1]]);
-      const aiResult = await generateScenarioImage(sourceImages.map((img: string) => img.split(',')[1]), selectedScenario, currentAnalysis, userPrompt, textConfig, mode);
+      const aiResult = await generateScenarioImage(sourceImages.map(img => img.split(',')[1]), selectedScenario, currentAnalysis, userPrompt, textConfig, mode);
       const finalResult = await processFinalImage(aiResult, sourceImages[0], textConfig, currentAnalysis, mode);
       setResultImage(finalResult);
       setShowLab(false); 
@@ -134,7 +134,7 @@ const App: React.FC = () => {
                     [ 01 ] 核心锚点注入
                   </label>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-                    {sourceImages.map((img, i) => (
+                    {sourceImages.map((img: string, i: number) => (
                       <div key={i} className="aspect-square relative group bg-white rounded-[24px] overflow-hidden border border-stone-50 shadow-sm">
                         <img src={img} className="w-full h-full object-cover" alt="" />
                       </div>
@@ -153,7 +153,7 @@ const App: React.FC = () => {
                     [ 02 ] 视觉语境构筑
                   </label>
                   <textarea 
-                    value={userPrompt} onChange={(e) => setUserPrompt(e.target.value)}
+                    value={userPrompt} onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setUserPrompt(e.target.value)}
                     className="w-full min-h-[120px] resize-none rounded-sm bg-white/40 backdrop-blur-md border border-stone-200/60 px-4 py-3 text-sm text-stone-800 placeholder:text-stone-400 focus:bg-white/80 transition-all outline-none"
                     placeholder={"// 导演指令：请描述您期望的画面细节与氛围...\n例如：清晨柔和的阳光透过百叶窗，商品放置在带有水滴的黑大理石台面上。"}
                   />
@@ -165,7 +165,7 @@ const App: React.FC = () => {
                   </label>
                   <input 
                     type="text" placeholder="主标题文案" value={textConfig.title} 
-                    onChange={e => setTextConfig({...textConfig, title: e.target.value})} 
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTextConfig({...textConfig, title: e.target.value})} 
                     className="input-gallery w-full font-serif text-xl" 
                   />
                 </section>

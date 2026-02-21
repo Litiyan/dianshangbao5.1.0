@@ -70,14 +70,14 @@ function buildEnhancedPrompt(
 }
 
 /**
- * 分析产品并提取物理参数 (使用 gemini-3-pro-preview for complex reasoning)
+ * 分析产品并提取物理参数 (使用 gemini-3.1-pro-preview for complex reasoning)
  */
 export async function analyzeProduct(base64Images: string[]): Promise<MarketAnalysis> {
-  // Fix: Create a new GoogleGenAI instance right before making an API call to ensure it always uses the most up-to-date API key.
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  // Use GEMINI_API_KEY for free tier
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || process.env.API_KEY });
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
+      model: 'gemini-3.1-pro-preview',
       contents: [{
         parts: [
           ...base64Images.map(data => ({ inlineData: { data, mimeType: 'image/png' } })),
@@ -142,8 +142,7 @@ export async function generateScenarioImage(
   textConfig: TextConfig,
   mode: GenerationMode
 ): Promise<string> {
-  // Fix: Create a new GoogleGenAI instance right before making an API call to ensure it always uses the most up-to-date API key.
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || process.env.API_KEY });
   
   const finalPrompt = buildEnhancedPrompt(scenario, analysis, userIntent, textConfig, mode);
   const ratioMap: Record<string, "1:1" | "9:16" | "16:9" | "3:4" | "4:3"> = { 
@@ -171,10 +170,11 @@ export async function generateScenarioImage(
 
   // Find the image part in candidates
   for (const candidate of response.candidates || []) {
-    if (!candidate.content?.parts) continue;
-    for (const part of candidate.content.parts) {
-      if (part.inlineData) {
-        return `data:image/png;base64,${part.inlineData.data}`;
+    if (candidate.content?.parts) {
+      for (const part of candidate.content.parts) {
+        if (part.inlineData) {
+          return `data:image/png;base64,${part.inlineData.data}`;
+        }
       }
     }
   }
