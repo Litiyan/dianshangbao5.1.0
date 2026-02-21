@@ -62,7 +62,7 @@ const App: React.FC = () => {
     })));
     setSourceImages(prev => [...prev, ...results].slice(0, 5));
     try {
-      const res = await analyzeProduct(results.map(r => (r as string).split(',')[1]));
+      const res = await analyzeProduct(results.map((r: string) => r.split(',')[1]));
       setAnalysis(res);
     } catch (err) { console.error(err); }
   };
@@ -72,7 +72,7 @@ const App: React.FC = () => {
     setIsProcessing(true); setStep('result');
     try {
       const currentAnalysis = analysis || await analyzeProduct([sourceImages[0].split(',')[1]]);
-      const aiResult = await generateScenarioImage(sourceImages.map(img => img.split(',')[1]), selectedScenario, currentAnalysis, userPrompt, textConfig, mode);
+      const aiResult = await generateScenarioImage(sourceImages.map((img: string) => img.split(',')[1]), selectedScenario, currentAnalysis, userPrompt, textConfig, mode);
       const finalResult = await processFinalImage(aiResult, sourceImages[0], textConfig, currentAnalysis, mode);
       setResultImage(finalResult);
       setShowLab(false); 
