@@ -7,7 +7,6 @@ export default defineConfig({
   define: {
     // 关键修复：确保浏览器能读取到 API_KEY
     'process.env.API_KEY': JSON.stringify(process.env.API_KEY),
-    'process.env.GEMINI_API_KEY': JSON.stringify(process.env.GEMINI_API_KEY),
     'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
   },
   build: {

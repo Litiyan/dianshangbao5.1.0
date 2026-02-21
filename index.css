@@ -1,0 +1,68 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,900;1,900&family=Noto+Sans+SC:wght@300;400;700;900&family=Noto+Serif+SC:wght@700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-[#FDFCFB] text-stone-800 antialiased overflow-x-hidden;
+    font-family: 'Noto Sans SC', sans-serif;
+  }
+}
+
+@layer utilities {
+  /* 极致克莱因蓝渐变 */
+  .text-klein-gradient {
+    background: linear-gradient(135deg, #002FA7 0%, #0047FF 50%, #1E1B4B 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  /* 顶级画廊毛玻璃材质 */
+  .glass-panel {
+    @apply bg-white/70 backdrop-blur-3xl border border-white/80 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.06)];
+  }
+
+  /* 输入框交互 */
+  .input-gallery {
+    @apply bg-white/40 border border-stone-100 px-7 py-5 rounded-[24px] font-sans text-sm focus:border-[#002FA7] focus:ring-4 focus:ring-[#002FA7]/5 transition-all outline-none placeholder:text-stone-200;
+  }
+}
+
+/* 无缝滚动动画核心算法 */
+@keyframes marquee-scroll {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee-infinite {
+  display: inline-block;
+  white-space: nowrap;
+  animation: marquee-scroll 45s linear infinite;
+  will-change: transform;
+}
+
+/* 背景流动动画 */
+@keyframes fluid-up {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-50%); }
+}
+
+@keyframes fluid-down {
+  0% { transform: translateY(-50%); }
+  100% { transform: translateY(0); }
+}
+
+.bg-flow-up { animation: fluid-up 120s linear infinite; }
+.bg-flow-down { animation: fluid-down 130s linear infinite; }
+
+/* 优雅切入动画 */
+.reveal-up {
+  animation: revealUp 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes revealUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
