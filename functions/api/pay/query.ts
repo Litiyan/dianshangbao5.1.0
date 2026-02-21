@@ -2,36 +2,38 @@
 import { signAlipayRequest } from "../../../utils/alipay";
 
 export async function onRequestGet(context: { env: { ALIPAY_APP_ID: string; ALIPAY_PRIVATE_KEY: string }; request: Request }) {
-  const { env, request } = context;
-  const { searchParams } = new URL(request.url);
-  const out_trade_no = searchParams.get("out_trade_no");
-
-  if (!out_trade_no) return new Response("Missing out_trade_no", { status: 400 });
-
-  const now = new Date();
-  const timestamp = now.toLocaleString('zh-CN', { 
-    hour12: false, 
-    timeZone: 'Asia/Shanghai',
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', second: '2-digit'
-  }).replace(/\//g, '-');
-
-  const commonParams: Record<string, string> = {
-    app_id: env.ALIPAY_APP_ID,
-    method: "alipay.trade.query",
-    format: "JSON",
-    charset: "utf-8",
-    sign_type: "RSA2",
-    timestamp,
-    version: "1.0",
-    biz_content: JSON.stringify({ out_trade_no })
-  };
-
   try {
-    const sign = await signAlipayRequest(commonParams, env.ALIPAY_PRIVATE_KEY);
-    const query = new URLSearchParams({ ...commonParams, sign }).toString();
-    
-    const response = await fetch(`https://openapi.alipay.com/gateway.do?${query}`);
+    const { env, request } = context;
+    const { searchParams } = new URL(request.url);
+    const out_trade_no = searchParams.get("out_trade_no");
+
+    if (!out_trade_no) return new Response("Missing out_trade_no", { status: 400 });
+
+    const d = new Date(Date.now() + 8 * 3600 * 1000);
+    const timestamp = d.toISOString().replace('T', ' ').substring(0, 19);
+
+    const params: Record<string, string> = {
+      app_id: env.ALIPAY_APP_ID,
+      method: "alipay.trade.query",
+      format: "JSON",
+      charset: "utf-8",
+      sign_type: "RSA2",
+      timestamp: timestamp,
+      version: "1.0",
+      biz_content: JSON.stringify({ out_trade_no })
+    };
+
+    const keys = Object.keys(params).sort();
+    const signStr = keys.map(k => `${k}=${params[k]}`).join('&');
+    const sign = await signAlipayRequest(signStr, env.ALIPAY_PRIVATE_KEY);
+    params.sign = sign;
+
+    const queryParams = new URLSearchParams();
+    for (const key of Object.keys(params)) {
+      queryParams.append(key, params[key]);
+    }
+
+    const response = await fetch(`https://openapi.alipay.com/gateway.do?${queryParams.toString()}`);
     const data: any = await response.json();
     const result = data.alipay_trade_query_response;
 
