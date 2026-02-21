@@ -3,12 +3,6 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { MarketAnalysis, ScenarioType, TextConfig, GenerationMode } from "../types";
 
 /**
- * Initialize the Google GenAI client using the provided environment variable.
- * Always use named parameter for apiKey.
- */
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
-/**
  * 工业级动态提示词工程 (DPE) 引擎 - 物理参数接力版
  */
 function buildEnhancedPrompt(
@@ -79,6 +73,8 @@ function buildEnhancedPrompt(
  * 分析产品并提取物理参数 (使用 gemini-3-pro-preview for complex reasoning)
  */
 export async function analyzeProduct(base64Images: string[]): Promise<MarketAnalysis> {
+  // Fix: Create a new GoogleGenAI instance right before making an API call to ensure it always uses the most up-to-date API key.
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
@@ -146,6 +142,8 @@ export async function generateScenarioImage(
   textConfig: TextConfig,
   mode: GenerationMode
 ): Promise<string> {
+  // Fix: Create a new GoogleGenAI instance right before making an API call to ensure it always uses the most up-to-date API key.
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const finalPrompt = buildEnhancedPrompt(scenario, analysis, userIntent, textConfig, mode);
   const ratioMap: Record<string, "1:1" | "9:16" | "16:9" | "3:4" | "4:3"> = { 

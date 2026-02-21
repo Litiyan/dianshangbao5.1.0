@@ -1,5 +1,5 @@
 
-import { verifySignature } from "../../../utils/alipay";
+import { verifyAlipayNotify } from "../../../utils/alipay";
 
 export async function onRequestPost(context: { env: { ALIPAY_PUBLIC_KEY: string }; request: Request }) {
   const { env, request } = context;
@@ -11,28 +11,25 @@ export async function onRequestPost(context: { env: { ALIPAY_PUBLIC_KEY: string 
     params[key] = value.toString();
   }
 
-  const sign = params.sign;
-  if (!sign) return new Response("fail");
-
   try {
-    // 2. 验签
-    const isValid = await verifySignature(params, sign, env.ALIPAY_PUBLIC_KEY);
+    // 2. 验签 (直接传入 params 对象)
+    const isValid = await verifyAlipayNotify(params, env.ALIPAY_PUBLIC_KEY);
     
-    if (isValid && params.trade_status === 'TRADE_SUCCESS') {
+    if (isValid && (params.trade_status === 'TRADE_SUCCESS' || params.trade_status === 'TRADE_FINISHED')) {
       const outTradeNo = params.out_trade_no;
       const totalAmount = params.total_amount;
       
-      console.log(`[Payment Success] Order: ${outTradeNo}, Amount: ${totalAmount}`);
+      console.log(`[ALIPAY SUCCESS] Order: ${outTradeNo}, Amount: ${totalAmount}`);
       
-      // TODO: 执行数据库加分操作 (D1 Database)
-      // await context.env.DB.prepare("UPDATE users SET credits = credits + ? WHERE order_no = ?")
-      //   .bind(parseInt(totalAmount) * 10, outTradeNo).run();
+      // TODO: 这里接入 D1 数据库执行算力加分
+      // await context.env.DB.prepare("UPDATE users SET credits = credits + 1000 WHERE order_no = ?").bind(outTradeNo).run();
 
       return new Response("success");
     }
   } catch (e) {
-    console.error("Notify Error:", e);
+    console.error("[ALIPAY NOTIFY ERROR]:", e);
   }
 
+  // 验签失败或状态不对必须返回 fail
   return new Response("fail");
 }

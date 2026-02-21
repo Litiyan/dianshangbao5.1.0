@@ -19,7 +19,8 @@ const App: React.FC = () => {
   const [payStatus, setPayStatus] = useState<'idle' | 'pending' | 'success'>('idle');
   const [qrUrl, setQrUrl] = useState<string | null>(null);
   const [currentOrderNo, setCurrentOrderNo] = useState<string | null>(null);
-  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  // Fix: Use 'number' instead of 'NodeJS.Timeout' for browser-side setInterval return value.
+  const pollingRef = useRef<number | null>(null);
 
   const [textConfig, setTextConfig] = useState<TextConfig>({ 
     title: "", detail: "", isEnabled: true, fontStyle: 'modern',
@@ -35,7 +36,8 @@ const App: React.FC = () => {
   // 轮询订单状态逻辑
   useEffect(() => {
     if (showCheckout && currentOrderNo && payStatus === 'pending') {
-      pollingRef.current = setInterval(async () => {
+      // Fix: Use window.setInterval to explicitly use the browser's implementation.
+      pollingRef.current = window.setInterval(async () => {
         try {
           const res = await fetch(`/api/pay/query?out_trade_no=${currentOrderNo}`);
           const data = await res.json();
