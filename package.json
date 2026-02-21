@@ -4,13 +4,20 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "tsx server.ts",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "lint": "tsc --noEmit"
   },
   "dependencies": {
     "@google/genai": "^1.41.0",
     "@imgly/background-removal": "^1.4.5",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/react": "^18.3.28",
+    "@types/react-dom": "^18.3.7",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
     "lucide-react": "^0.460.0",
     "react": "18.3.1",
     "react-dom": "18.3.1"
